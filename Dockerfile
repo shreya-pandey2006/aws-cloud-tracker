@@ -1,9 +1,10 @@
 # =======================================================
 # Multi-Stage Production Dockerfile for AWS Cloud Clubs Tracking System
+# Using Node 22 (Debian Bookworm) for prebuilt glibc SQLite support
 # =======================================================
 
 # Step 1: Build Admin Dashboard
-FROM node:20-alpine AS frontend-builder
+FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app/admin-dashboard
 COPY admin-dashboard/package*.json ./
 RUN npm ci
@@ -11,15 +12,15 @@ COPY admin-dashboard/ ./
 RUN npm run build
 
 # Step 2: Build Node.js Backend & Package Full-Stack Server
-FROM node:20-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
-# Install native compilation dependencies for SQLite if needed
-RUN apk add --no-cache python3 make g++
+# Install standard native compilation tools if needed
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/server
 COPY server/package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy server application source code
 COPY server/ ./
