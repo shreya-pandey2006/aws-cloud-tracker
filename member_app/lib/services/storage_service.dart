@@ -6,7 +6,7 @@ class StorageService {
   static const String _keyToken = 'auth_token';
   static const String _keyMember = 'member_profile';
   static const String _keyServerUrl = 'server_url';
-  static const String defaultServerUrl = 'http://localhost:5000';
+  static const String defaultServerUrl = 'https://aws-cloud-tracker.onrender.com';
 
   static Future<void> saveAuth(String token, MemberModel member) async {
     final prefs = await SharedPreferences.getInstance();

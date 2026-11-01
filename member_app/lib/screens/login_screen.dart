@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 filled: true,
                 fillColor: Color(0xFF0F172A),
                 border: OutlineInputBorder(),
-                hintText: 'http://localhost:5000',
+                hintText: 'https://aws-cloud-tracker.onrender.com',
               ),
             ),
           ],
