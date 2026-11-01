@@ -1,0 +1,12 @@
+node_modules/
+.env
+tracker.db*
+dist/
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.log
+.DS_Store
+Thumbs.db

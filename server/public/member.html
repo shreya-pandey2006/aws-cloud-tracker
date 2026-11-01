@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AWS Cloud Clubs of Ajay Kumar Garg Engineering College</title>
+  <meta name="theme-color" content="#0B0F19">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #0B0F19;
+      color: #F8FAFC;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0 16px;
+    }
+    .status-card {
+      background: #111827;
+      border: 1px solid #1F2937;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 16px;
+      transition: all 0.3s ease;
+    }
+    .status-card.active {
+      background: linear-gradient(135deg, #064E3B, #065F46);
+      border-color: #10B981;
+      box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3);
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 52px;
+      height: 30px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #374151;
+      transition: .3s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #10B981; }
+    input:checked + .slider:before { transform: translateX(22px); }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .cell {
+      background: #111827;
+      border: 1px solid #1E293B;
+      padding: 12px;
+      border-radius: 12px;
+    }
+    .cell-label { font-size: 10px; color: #64748B; font-weight: 700; letter-spacing: 0.5px; }
+    .cell-val { font-size: 15px; font-weight: 700; color: #E2E8F0; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+    #mini-map {
+      height: 220px;
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid #1E293B;
+      margin-bottom: 18px;
+      background: #0B1120;
+    }
+    .btn-sos {
+      width: 100%;
+      padding: 16px;
+      background: #EF4444;
+      border: none;
+      border-radius: 14px;
+      color: white;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4);
+      transition: transform 0.1s;
+    }
+    .btn-sos:active { transform: scale(0.98); }
+    .auth-overlay {
+      position: fixed; inset: 0; background: #0B0F19; z-index: 100;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .auth-box {
+      background: #111827; border: 1px solid #1E293B; border-radius: 20px;
+      padding: 28px; width: 100%; max-width: 400px;
+    }
+    .input-group { margin-bottom: 14px; }
+    .input-group label { display: block; font-size: 12px; color: #94A3B8; margin-bottom: 6px; }
+    .input-group input {
+      width: 100%; padding: 12px; background: #0B0F19; border: 1px solid #334155;
+      border-radius: 8px; color: white; font-size: 14px; outline: none;
+    }
+    .btn-submit {
+      width: 100%; padding: 14px; background: #10B981; border: none;
+      border-radius: 10px; color: white; font-weight: 700; font-size: 15px; cursor: pointer;
+    }
+    .chip {
+      background: #1E293B; color: #38BDF8; padding: 6px 12px; border-radius: 20px;
+      font-size: 12px; cursor: pointer; border: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth Overlay -->
+  <div id="auth-overlay" class="auth-overlay">
+    <div class="auth-box">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 50px; height: 50px; background: #10B981; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+          📍
+        </div>
+        <h2 style="font-size: 18px; font-weight: 800;">AWS Cloud Clubs</h2>
+        <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Ajay Kumar Garg Engineering College</p>
+      </div>
+
+      <div class="input-group">
+        <label>Club Passcode</label>
+        <input type="text" id="club-code" value="AKGEC2026" />
+      </div>
+      <div class="input-group">
+        <label>Member Email</label>
+        <input type="email" id="email" value="alex@akgec.awscloudclubs.com" />
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" value="member123" />
+      </div>
+
+      <button class="btn-submit" onclick="handleLogin()">Sign In & Start Tracking</button>
+
+      <div style="margin-top: 20px; text-align: center;">
+        <p style="font-size: 11px; color: #64748B; margin-bottom: 8px;">Quick Demo Accounts:</p>
+        <div style="display: flex; gap: 6px; justify-content: center;">
+          <button class="chip" onclick="quickFill('alex@akgec.awscloudclubs.com')">Alex</button>
+          <button class="chip" onclick="quickFill('jordan@akgec.awscloudclubs.com')">Jordan</button>
+          <button class="chip" onclick="quickFill('taylor@akgec.awscloudclubs.com')">Taylor</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Mobile App Interface -->
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1 style="font-size: 16px; font-weight: 800;" id="member-name">Alex Rivera</h1>
+        <p style="font-size: 11px; color: #64748B;" id="club-title">AWS Cloud Clubs • Ajay Kumar Garg Engg College</p>
+      </div>
+      <button onclick="handleLogout()" style="background:#1E293B; border:1px solid #334155; color:#EF4444; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer;">Logout</button>
+    </div>
+
+    <!-- Live Sharing Toggle Card -->
+    <div id="status-card" class="status-card">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div id="pulse-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
+          <span id="status-label" style="font-size: 13px; font-weight: 800; letter-spacing: 0.5px;">SHARING PAUSED</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="share-toggle" onchange="toggleSharing(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p id="status-desc" style="font-size: 11px; color: #94A3B8; line-height: 1.4;">
+        Your location is private. Toggle the switch to share your live coordinates with Club HQ.
+      </p>
+    </div>
+
+    <!-- Live Telemetry Grid -->
+    <div class="grid">
+      <div class="cell">
+        <div class="cell-label">LATITUDE</div>
+        <div class="cell-val" id="val-lat">28.67570</div>
+      </div>
+      <div class="cell">
+        <div class="cell-label">LONGITUDE</div>
+        <div class="cell-val" id="val-lng">77.50200</div>
+      </div>
+      <div class="cell">
+        <div class="cell-label">SPEED</div>
+        <div class="cell-val" id="val-speed">0.0 km/h</div>
+      </div>
+      <div class="cell">
+        <div class="cell-label">GPS ACCURACY</div>
+        <div class="cell-val" id="val-acc">±4.5 m</div>
+      </div>
+    </div>
+
+    <!-- Mini OpenStreetMap -->
+    <div id="mini-map"></div>
+
+    <!-- SOS Panic Button -->
+    <button class="btn-sos" onclick="triggerSos()">
+      <span>🚨</span>
+      <span>EMERGENCY SOS DISTRESS</span>
+    </button>
+  </div>
+
+  <script>
+    let currentMember = null;
+    let socket = null;
+    let map = null;
+    let marker = null;
+    let isSharing = false;
+    let watchId = null;
+    let currentLat = 28.6757;
+    let currentLng = 77.5020;
+
+    function quickFill(email) {
+      document.getElementById('email').value = email;
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const clubCode = document.getElementById('club-code').value;
+
+      try {
+        const res = await fetch('/api/auth/member/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, clubCode })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        currentMember = data.user;
+        localStorage.setItem('member_token', data.token);
+        localStorage.setItem('member_user', JSON.stringify(currentMember));
+
+        document.getElementById('auth-overlay').style.display = 'none';
+        initApp();
+      } catch (err) {
+        alert(err.message || 'Login failed');
+      }
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('member_token');
+      localStorage.removeItem('member_user');
+      location.reload();
+    }
+
+    function initApp() {
+      document.getElementById('member-name').innerText = currentMember.name;
+      document.getElementById('club-title').innerText = `${currentMember.club_name || 'Apex Trailblazers'} • ${currentMember.role || 'Member'}`;
+
+      // Init Map
+      if (!map) {
+        map = L.map('mini-map', { zoomControl: false }).setView([currentLat, currentLng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        marker = L.marker([currentLat, currentLng]).addTo(map);
+      }
+
+      // Connect Socket
+      socket = io();
+      socket.emit('join', {
+        clubId: currentMember.club_id,
+        memberId: currentMember.id,
+        role: 'member'
+      });
+
+      // Start GPS
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(updatePos, err => console.warn(err), { enableHighAccuracy: true });
+      }
+    }
+
+    function updatePos(pos) {
+      currentLat = pos.coords.latitude;
+      currentLng = pos.coords.longitude;
+      const speed = (pos.coords.speed || 0) * 3.6;
+      const acc = pos.coords.accuracy || 5;
+
+      document.getElementById('val-lat').innerText = currentLat.toFixed(5);
+      document.getElementById('val-lng').innerText = currentLng.toFixed(5);
+      document.getElementById('val-speed').innerText = speed.toFixed(1) + ' km/h';
+      document.getElementById('val-acc').innerText = '±' + acc.toFixed(1) + ' m';
+
+      if (marker && map) {
+        marker.setLatLng([currentLat, currentLng]);
+        map.setView([currentLat, currentLng]);
+      }
+
+      if (isSharing && socket) {
+        socket.emit('location:update', {
+          memberId: currentMember.id,
+          clubId: currentMember.club_id,
+          latitude: currentLat,
+          longitude: currentLng,
+          accuracy: acc,
+          speed: speed,
+          heading: pos.coords.heading || 0,
+          battery: 92
+        });
+      }
+    }
+
+    function toggleSharing(checked) {
+      isSharing = checked;
+      const card = document.getElementById('status-card');
+      const dot = document.getElementById('pulse-dot');
+      const label = document.getElementById('status-label');
+      const desc = document.getElementById('status-desc');
+
+      if (isSharing) {
+        card.classList.add('active');
+        dot.style.background = '#34D399';
+        label.innerText = 'LIVE SHARING ACTIVE';
+        label.style.color = '#34D399';
+        desc.innerText = 'Your real-time GPS coordinates are streaming to Club HQ Dispatch.';
+
+        // Start GPS Watcher
+        if ('geolocation' in navigator) {
+          watchId = navigator.geolocation.watchPosition(updatePos, null, {
+            enableHighAccuracy: true,
+            maximumAge: 3000
+          });
+        }
+      } else {
+        card.classList.remove('active');
+        dot.style.background = '#94A3B8';
+        label.innerText = 'SHARING PAUSED';
+        label.style.color = '#94A3B8';
+        desc.innerText = 'Your location is private. Toggle the switch to share your live coordinates.';
+
+        if (watchId) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+      }
+
+      if (socket && currentMember) {
+        socket.emit('location:toggle', {
+          memberId: currentMember.id,
+          clubId: currentMember.club_id,
+          enabled: isSharing
+        });
+      }
+    }
+
+    function triggerSos() {
+      if (!confirm('Are you sure you want to broadcast an EMERGENCY SOS to the Club Admin?')) return;
+
+      if (socket && currentMember) {
+        socket.emit('member:sos', {
+          memberId: currentMember.id,
+          clubId: currentMember.club_id,
+          latitude: currentLat,
+          longitude: currentLng,
+          message: `EMERGENCY SOS: Member ${currentMember.name} pressed panic distress!`
+        });
+        alert('🚨 Emergency SOS transmitted to Club HQ!');
+      }
+    }
+
+    // Auto check local storage
+    const saved = localStorage.getItem('member_user');
+    if (saved) {
+      currentMember = JSON.parse(saved);
+      document.getElementById('auth-overlay').style.display = 'none';
+      window.onload = initApp;
+    }
+  </script>
+</body>
+</html>
+

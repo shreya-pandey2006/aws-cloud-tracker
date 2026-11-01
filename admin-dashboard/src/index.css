@@ -1,0 +1,266 @@
+@import 'leaflet/dist/leaflet.css';
+
+:root {
+  --bg-main: #0b0f19;
+  --bg-card: #111827;
+  --bg-card-hover: #1f2937;
+  --bg-elevated: #1e293b;
+  --border-color: #374151;
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
+  --text-faint: #6b7280;
+
+  --accent-green: #10b981;
+  --accent-green-glow: rgba(16, 185, 129, 0.4);
+  --accent-blue: #3b82f6;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-red-glow: rgba(239, 68, 68, 0.5);
+  --accent-purple: #8b5cf6;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* App Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-main);
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 64px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Map Container */
+.map-wrapper {
+  flex: 1;
+  height: 100%;
+  position: relative;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+  background: #0b0f19;
+}
+
+/* Leaflet Dark Theme Overrides */
+.leaflet-container {
+  font-family: inherit;
+  background-color: #0b1120 !important;
+}
+
+/* Watermark-Free High-Contrast Dark Tiles */
+.dark-tiles img.leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(100%);
+}
+
+.leaflet-popup-content-wrapper {
+  background: #111827 !important;
+  color: #f9fafb !important;
+  border: 1px solid #374151;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  padding: 0;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4;
+}
+
+.leaflet-popup-tip {
+  background: #111827 !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: #9ca3af !important;
+  padding: 8px 8px 0 0 !important;
+}
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+/* Custom Map Marker Pins */
+.custom-member-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.marker-pin {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  position: relative;
+  z-index: 2;
+  border: 2.5px solid white;
+}
+
+.marker-pin.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #ecfdf5;
+}
+
+.marker-pin.paused {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: #fffbeb;
+}
+
+.marker-pin.offline {
+  background: linear-gradient(135deg, #64748b, #475569);
+  border-color: #f1f5f9;
+  opacity: 0.8;
+}
+
+.marker-pin.sos {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border-color: #fef2f2;
+  animation: beacon-sos 1s infinite alternate;
+}
+
+/* Pulsing Halos */
+.marker-halo {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.marker-halo.active {
+  background: var(--accent-green-glow);
+  animation: pulse-halo 2.2s infinite ease-out;
+}
+
+.marker-halo.sos {
+  top: -16px;
+  left: -16px;
+  right: -16px;
+  bottom: -16px;
+  background: var(--accent-red-glow);
+  animation: pulse-sos-ring 1s infinite;
+}
+
+.marker-heading-arrow {
+  position: absolute;
+  top: -8px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid #ffffff;
+  transform-origin: center 27px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+@keyframes pulse-halo {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-sos-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes beacon-sos {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 10px #ef4444;
+  }
+  100% {
+    transform: scale(1.15);
+    box-shadow: 0 0 25px #ef4444;
+  }
+}
+
+/* Basecamp pin */
+.basecamp-pin {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #3b82f6;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* Utility Animations */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
