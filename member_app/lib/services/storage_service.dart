@@ -37,13 +37,11 @@ class StorageService {
   }
 
   static Future<String> getServerUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyServerUrl) ?? defaultServerUrl;
+    return defaultServerUrl;
   }
 
   static Future<void> setServerUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyServerUrl, url);
+    // Universal URL locked to defaultServerUrl
   }
 
   static Future<void> clear() async {

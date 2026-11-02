@@ -174,77 +174,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showServerSettingsDialog() async {
-    final currentUrl = await StorageService.getServerUrl();
-    final urlController = TextEditingController(text: currentUrl);
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Backend Server URL', style: TextStyle(color: Colors.white, fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter the live backend API URL (Render or local network IP):',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Color(0xFF0F172A),
-                border: OutlineInputBorder(),
-                hintText: 'https://aws-cloud-tracker.onrender.com',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-            onPressed: () async {
-              final rawUrl = urlController.text.trim();
-              if (rawUrl.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Server URL cannot be empty'), backgroundColor: Colors.red),
-                );
-                return;
-              }
-              if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('URL must start with http:// or https://'), backgroundColor: Colors.red),
-                );
-                return;
-              }
-              // Strip trailing slash if present
-              final sanitizedUrl = rawUrl.endsWith('/') ? rawUrl.substring(0, rawUrl.length - 1) : rawUrl;
-
-              await StorageService.setServerUrl(sanitizedUrl);
-              if (!ctx.mounted) return;
-              Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Server URL updated')),
-                );
-              }
-            },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -256,15 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Server Config Icon
-                Align(
-                  alignment: Alignment.topRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.settings, color: Color(0xFF64748B), size: 20),
-                    onPressed: _showServerSettingsDialog,
-                    tooltip: 'Server Gateway Settings',
-                  ),
-                ),
+                const SizedBox(height: 12),
 
                 // Logo & Header
                 Container(
