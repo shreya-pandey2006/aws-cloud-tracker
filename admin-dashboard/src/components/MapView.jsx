@@ -72,7 +72,7 @@ export default function MapView({
     // Custom Zoom controls at top right
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // AKGEC Campus Basecamp Landmark
+    // AKGEC Campus Landmark
     const campusIcon = L.divIcon({
       className: 'campus-basecamp-icon',
       html: `

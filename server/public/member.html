@@ -167,10 +167,6 @@
       <!-- Login Form -->
       <form id="form-login" onsubmit="event.preventDefault(); handleLogin();">
         <div class="input-group">
-          <label>Club Passcode</label>
-          <input type="text" id="login-club-code" placeholder="AKGEC2026" required />
-        </div>
-        <div class="input-group">
           <label>Member Email</label>
           <input type="email" id="login-email" placeholder="student@akgec.ac.in" required />
         </div>
@@ -192,10 +188,6 @@
 
       <!-- Register Form -->
       <form id="form-register" style="display: none;" onsubmit="event.preventDefault(); handleRegister();">
-        <div class="input-group">
-          <label>Club Passcode</label>
-          <input type="text" id="reg-club-code" placeholder="AKGEC2026" required />
-        </div>
         <div class="input-group">
           <label>Full Name</label>
           <input type="text" id="reg-name" placeholder="Your Name" required />
@@ -333,12 +325,7 @@
     async function handleLogin() {
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
-      const clubCode = document.getElementById('login-club-code').value.trim();
 
-      if (!clubCode || clubCode.length < 3) {
-        showError('Please enter a valid Club Passcode (e.g. AKGEC2026)');
-        return;
-      }
       if (!email || !EMAIL_REGEX.test(email)) {
         showError('Please enter a valid email address (e.g. name@akgec.ac.in)');
         return;
@@ -352,7 +339,7 @@
         const res = await fetch('/api/auth/member/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, clubCode })
+          body: JSON.stringify({ email, password })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
@@ -371,8 +358,6 @@
     async function handleForgotPassword() {
       const email = prompt('Enter your registered email address:', document.getElementById('login-email').value.trim());
       if (!email) return;
-      const clubCode = prompt('Enter Club Passcode:', document.getElementById('login-club-code').value.trim() || 'AKGEC2026');
-      if (!clubCode) return;
       const newPassword = prompt('Enter new password (at least 6 characters):');
       if (!newPassword || newPassword.length < 6) {
         alert('Password must be at least 6 characters long.');
@@ -382,7 +367,7 @@
         const res = await fetch('/api/auth/member/reset-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clubCode, email, newPassword })
+          body: JSON.stringify({ email, newPassword })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to reset password');
@@ -398,16 +383,11 @@
     }
 
     async function handleRegister() {
-      const clubCode = document.getElementById('reg-club-code').value.trim();
       const name = document.getElementById('reg-name').value.trim();
       const email = document.getElementById('reg-email').value.trim();
       const phone = document.getElementById('reg-phone').value.trim();
       const password = document.getElementById('reg-password').value;
 
-      if (!clubCode || clubCode.length < 3) {
-        showError('Please enter a valid Club Passcode (e.g. AKGEC2026)');
-        return;
-      }
       if (!name || name.length < 2) {
         showError('Full name must be at least 2 characters');
         return;
@@ -429,7 +409,7 @@
         const res = await fetch('/api/auth/member/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clubCode, name, email, phone, password })
+          body: JSON.stringify({ name, email, phone, password })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');

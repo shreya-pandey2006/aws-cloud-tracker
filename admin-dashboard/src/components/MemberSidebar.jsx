@@ -159,21 +159,8 @@ export default function MemberSidebar({
               No Members Registered Yet
             </h4>
             <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.5', maxWidth: '280px' }}>
-              Students can register using the mobile app with Club Passcode:
+              Students can register directly using the AWS Tracker mobile app.
             </p>
-            <div style={{
-              marginTop: '10px',
-              padding: '6px 14px',
-              backgroundColor: '#1e293b',
-              border: '1px dashed #38bdf8',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '700',
-              color: '#38bdf8',
-              letterSpacing: '0.05em'
-            }}>
-              AKGEC2026
-            </div>
             <p style={{ fontSize: '11px', color: '#64748b', marginTop: '12px' }}>
               Once members sign in and share GPS, they appear here live.
             </p>

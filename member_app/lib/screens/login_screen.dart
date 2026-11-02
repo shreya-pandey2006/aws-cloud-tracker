@@ -21,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _emergencyController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _clubCodeController = TextEditingController(text: 'AKGEC2026');
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -34,34 +33,18 @@ class _LoginScreenState extends State<LoginScreen> {
     _phoneController.dispose();
     _emergencyController.dispose();
     _passwordController.dispose();
-    _clubCodeController.dispose();
     super.dispose();
   }
 
   Future<void> _handleAuth() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final clubCode = _clubCodeController.text.trim();
     final name = _nameController.text.trim();
     final role = _roleController.text.trim();
     final phone = _phoneController.text.trim();
     final emergency = _emergencyController.text.trim();
 
-    // 1. Club Passcode validation
-    if (clubCode.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your Club Passcode (e.g. AKGEC2026).');
-      return;
-    }
-    if (clubCode.length < 3) {
-      setState(() => _errorMessage = 'Club Passcode must be at least 3 characters.');
-      return;
-    }
-    if (clubCode.length > 30) {
-      setState(() => _errorMessage = 'Club Passcode cannot exceed 30 characters.');
-      return;
-    }
-
-    // 2. Register-specific field validation
+    // 1. Register-specific field validation
     if (_isRegisterMode) {
       if (name.isEmpty) {
         setState(() => _errorMessage = 'Please enter your Full Name.');
@@ -148,7 +131,6 @@ class _LoginScreenState extends State<LoginScreen> {
       Map<String, dynamic> result;
       if (_isRegisterMode) {
         result = await ApiService.register(
-          clubCode: clubCode,
           name: name,
           role: role.isNotEmpty ? role : 'Member',
           email: email,
@@ -160,7 +142,6 @@ class _LoginScreenState extends State<LoginScreen> {
         result = await ApiService.login(
           email: email,
           password: password,
-          clubCode: clubCode,
         );
       }
 
@@ -184,9 +165,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showForgotPasswordDialog() {
-    final resetClubCodeController = TextEditingController(
-      text: _clubCodeController.text.trim().isNotEmpty ? _clubCodeController.text.trim() : 'AKGEC2026',
-    );
     final resetEmailController = TextEditingController(text: _emailController.text.trim());
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
@@ -264,22 +242,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11),
                         ),
                       ),
-
-                    // Club Passcode
-                    const Text('Club Passcode', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1))),
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: resetClubCodeController,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.vpn_key, color: Color(0xFF64748B), size: 16),
-                        filled: true,
-                        fillColor: const Color(0xFF1E293B),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
 
                     // Email Address
                     const Text('Registered Email', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1))),
@@ -379,15 +341,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: isResetting
                       ? null
                       : () async {
-                          final code = resetClubCodeController.text.trim();
                           final email = resetEmailController.text.trim();
                           final newPass = newPasswordController.text;
                           final confirmPass = confirmPasswordController.text;
 
-                          if (code.isEmpty) {
-                            setDialogState(() => dialogError = 'Please enter your Club Passcode.');
-                            return;
-                          }
                           if (email.isEmpty || !email.contains('@')) {
                             setDialogState(() => dialogError = 'Please enter a valid registered email.');
                             return;
@@ -408,7 +365,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           try {
                             final result = await ApiService.resetPassword(
-                              clubCode: code,
                               email: email,
                               newPassword: newPass,
                             );
@@ -612,34 +568,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Club Passcode
-                      const Text(
-                        'Club Passcode',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _clubCodeController,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.vpn_key, color: Color(0xFF64748B), size: 18),
-                          filled: true,
-                          fillColor: const Color(0xFF0F172A),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Color(0xFF334155)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Color(0xFF334155)),
-                          ),
-                          hintText: 'AKGEC2026',
-                          hintStyle: const TextStyle(color: Color(0xFF475569)),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
                       // If Register Mode, Full Name & Club Role
                       if (_isRegisterMode) ...[
                         const Text(

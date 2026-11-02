@@ -63,19 +63,19 @@ router.post('/member/login', (req, res) => {
   let memberQuery = 'SELECT m.*, c.name as club_name, c.code as club_code FROM members m JOIN clubs c ON m.club_id = c.id WHERE LOWER(m.email) = ?';
   const queryParams = [email.toLowerCase().trim()];
 
-  if (clubCode) {
+  if (clubCode && typeof clubCode === 'string' && clubCode.trim().length > 0) {
     memberQuery += ' AND UPPER(c.code) = ?';
     queryParams.push(clubCode.toUpperCase().trim());
   }
 
   const member = db.prepare(memberQuery).get(...queryParams);
   if (!member) {
-    return res.status(401).json({ error: 'Invalid member credentials or club passcode' });
+    return res.status(401).json({ error: 'Invalid email or password' });
   }
 
   const isMatch = bcrypt.compareSync(password, member.password_hash);
   if (!isMatch) {
-    return res.status(401).json({ error: 'Invalid member credentials' });
+    return res.status(401).json({ error: 'Invalid email or password' });
   }
 
   const token = signToken({
@@ -100,11 +100,8 @@ router.post('/member/login', (req, res) => {
 
 // Member Forgot / Reset Password
 router.post('/member/reset-password', (req, res) => {
-  const { clubCode, email, newPassword } = req.body;
+  const { email, newPassword } = req.body;
 
-  if (!clubCode || typeof clubCode !== 'string' || clubCode.trim().length < 3) {
-    return res.status(400).json({ error: 'A valid club passcode is required' });
-  }
   if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
     return res.status(400).json({ error: 'A valid registered email address is required' });
   }
@@ -112,20 +109,15 @@ router.post('/member/reset-password', (req, res) => {
     return res.status(400).json({ error: 'New password must be between 6 and 100 characters long' });
   }
 
-  const club = db.prepare('SELECT * FROM clubs WHERE UPPER(code) = ?').get(clubCode.toUpperCase().trim());
-  if (!club) {
-    return res.status(404).json({ error: 'Invalid club passcode. No club found with this code.' });
-  }
-
   const member = db.prepare(`
     SELECT m.*, c.name as club_name, c.code as club_code
     FROM members m
     JOIN clubs c ON m.club_id = c.id
-    WHERE LOWER(m.email) = ? AND m.club_id = ?
-  `).get(email.toLowerCase().trim(), club.id);
+    WHERE LOWER(m.email) = ?
+  `).get(email.toLowerCase().trim());
 
   if (!member) {
-    return res.status(404).json({ error: 'No registered member found with this email in this club' });
+    return res.status(404).json({ error: 'No registered member found with this email' });
   }
 
   const salt = bcrypt.genSaltSync(10);
@@ -159,9 +151,6 @@ router.post('/member/register', (req, res) => {
   const { clubCode, name, email, phone, emergencyContact, password, role } = req.body;
 
   // Validate required fields
-  if (!clubCode || typeof clubCode !== 'string' || clubCode.trim().length < 3) {
-    return res.status(400).json({ error: 'A valid club passcode (at least 3 characters) is required' });
-  }
   if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 60) {
     return res.status(400).json({ error: 'Full name must be between 2 and 60 characters' });
   }
@@ -184,9 +173,16 @@ router.post('/member/register', (req, res) => {
     ? role.trim().substring(0, 50)
     : 'Member';
 
-  const club = db.prepare('SELECT * FROM clubs WHERE UPPER(code) = ?').get(clubCode.toUpperCase().trim());
+  const effectiveClubCode = (typeof clubCode === 'string' && clubCode.trim().length > 0)
+    ? clubCode.toUpperCase().trim()
+    : 'AKGEC2026';
+
+  let club = db.prepare('SELECT * FROM clubs WHERE UPPER(code) = ?').get(effectiveClubCode);
   if (!club) {
-    return res.status(404).json({ error: 'Invalid club passcode. No club found with this code.' });
+    club = db.prepare('SELECT * FROM clubs ORDER BY created_at ASC LIMIT 1').get();
+  }
+  if (!club) {
+    return res.status(500).json({ error: 'No active club found in system.' });
   }
 
   const existingMember = db.prepare('SELECT id FROM members WHERE LOWER(email) = ?').get(email.toLowerCase().trim());

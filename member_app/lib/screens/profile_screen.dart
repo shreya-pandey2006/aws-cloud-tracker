@@ -88,8 +88,6 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   _buildInfoRow('Club Name', member.clubName, Icons.groups),
                   const Divider(color: Color(0xFF1E293B)),
-                  _buildInfoRow('Club Passcode', member.clubCode, Icons.vpn_key),
-                  const Divider(color: Color(0xFF1E293B)),
                   _buildInfoRow('Club Role', member.role, Icons.badge_outlined),
                   const Divider(color: Color(0xFF1E293B)),
                   _buildInfoRow('Phone', member.phone ?? 'Not registered', Icons.phone),

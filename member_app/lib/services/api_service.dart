@@ -23,7 +23,7 @@ class ApiService {
       body: jsonEncode({
         'email': email.trim(),
         'password': password.trim(),
-        if (clubCode != null && clubCode.isNotEmpty) 'clubCode': clubCode.trim(),
+        if (clubCode != null && clubCode.trim().isNotEmpty) 'clubCode': clubCode.trim(),
       }),
     );
 
@@ -40,9 +40,9 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> resetPassword({
-    required String clubCode,
     required String email,
     required String newPassword,
+    String? clubCode,
   }) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl/auth/member/reset-password');
@@ -51,7 +51,7 @@ class ApiService {
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'clubCode': clubCode.trim(),
+        if (clubCode != null && clubCode.trim().isNotEmpty) 'clubCode': clubCode.trim(),
         'email': email.trim(),
         'newPassword': newPassword,
       }),
@@ -74,10 +74,10 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> register({
-    required String clubCode,
     required String name,
     required String email,
     required String password,
+    String? clubCode,
     String? role,
     String? phone,
     String? emergencyContact,
@@ -89,7 +89,7 @@ class ApiService {
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'clubCode': clubCode.trim(),
+        'clubCode': (clubCode != null && clubCode.trim().isNotEmpty) ? clubCode.trim() : 'AKGEC2026',
         'name': name.trim(),
         'role': (role != null && role.trim().isNotEmpty) ? role.trim() : 'Member',
         'email': email.trim(),

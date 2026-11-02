@@ -81,9 +81,6 @@ export default function Navbar({
           <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0 0', fontWeight: '500' }}>
             Ajay Kumar Garg Engineering College
           </p>
-          <p style={{ fontSize: '10px', color: '#64748b', margin: '1px 0 0 0' }}>
-            Club Passcode: <strong style={{ color: '#cbd5e1' }}>{club?.code || 'AKGEC2026'}</strong>
-          </p>
         </div>
       </div>
 
