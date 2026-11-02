@@ -98,6 +98,62 @@ router.post('/member/login', (req, res) => {
   });
 });
 
+// Member Forgot / Reset Password
+router.post('/member/reset-password', (req, res) => {
+  const { clubCode, email, newPassword } = req.body;
+
+  if (!clubCode || typeof clubCode !== 'string' || clubCode.trim().length < 3) {
+    return res.status(400).json({ error: 'A valid club passcode is required' });
+  }
+  if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
+    return res.status(400).json({ error: 'A valid registered email address is required' });
+  }
+  if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6 || newPassword.length > 100) {
+    return res.status(400).json({ error: 'New password must be between 6 and 100 characters long' });
+  }
+
+  const club = db.prepare('SELECT * FROM clubs WHERE UPPER(code) = ?').get(clubCode.toUpperCase().trim());
+  if (!club) {
+    return res.status(404).json({ error: 'Invalid club passcode. No club found with this code.' });
+  }
+
+  const member = db.prepare(`
+    SELECT m.*, c.name as club_name, c.code as club_code
+    FROM members m
+    JOIN clubs c ON m.club_id = c.id
+    WHERE LOWER(m.email) = ? AND m.club_id = ?
+  `).get(email.toLowerCase().trim(), club.id);
+
+  if (!member) {
+    return res.status(404).json({ error: 'No registered member found with this email in this club' });
+  }
+
+  const salt = bcrypt.genSaltSync(10);
+  const passwordHash = bcrypt.hashSync(newPassword, salt);
+
+  db.prepare(`UPDATE members SET password_hash = ? WHERE id = ?`).run(passwordHash, member.id);
+
+  const token = signToken({
+    id: member.id,
+    clubId: member.club_id,
+    role: member.role || 'Member',
+    name: member.name,
+    email: member.email
+  });
+
+  const { password_hash, ...safeMember } = member;
+
+  return res.json({
+    success: true,
+    message: 'Password reset successfully',
+    token,
+    user: {
+      ...safeMember,
+      role: member.role || 'Member'
+    }
+  });
+});
+
 // Member Registration
 router.post('/member/register', (req, res) => {
   const { clubCode, name, email, phone, emergencyContact, password, role } = req.body;

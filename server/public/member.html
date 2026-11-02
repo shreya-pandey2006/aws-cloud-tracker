@@ -184,6 +184,9 @@
             </button>
           </div>
         </div>
+        <div style="text-align: right; margin-top: -6px; margin-bottom: 14px;">
+          <a href="javascript:void(0)" onclick="handleForgotPassword()" style="color: #38BDF8; font-size: 12px; font-weight: 600; text-decoration: none;">Forgot Password?</a>
+        </div>
         <button type="submit" class="btn-submit">Sign In & Track</button>
       </form>
 
@@ -358,6 +361,35 @@
         localStorage.setItem('member_token', data.token);
         localStorage.setItem('member_user', JSON.stringify(currentMember));
 
+        document.getElementById('auth-overlay').style.display = 'none';
+        initApp();
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    async function handleForgotPassword() {
+      const email = prompt('Enter your registered email address:', document.getElementById('login-email').value.trim());
+      if (!email) return;
+      const clubCode = prompt('Enter Club Passcode:', document.getElementById('login-club-code').value.trim() || 'AKGEC2026');
+      if (!clubCode) return;
+      const newPassword = prompt('Enter new password (at least 6 characters):');
+      if (!newPassword || newPassword.length < 6) {
+        alert('Password must be at least 6 characters long.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/member/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clubCode, email, newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+        currentMember = data.user;
+        localStorage.setItem('member_token', data.token);
+        localStorage.setItem('member_user', JSON.stringify(currentMember));
+        alert('Password reset successfully! Logged in as ' + currentMember.name);
         document.getElementById('auth-overlay').style.display = 'none';
         initApp();
       } catch (err) {

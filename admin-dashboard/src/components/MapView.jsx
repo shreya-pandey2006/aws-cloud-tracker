@@ -104,7 +104,7 @@ export default function MapView({
     campusMarker.bindPopup(`
       <div style="font-family: sans-serif; padding: 6px 10px; min-width: 200px;">
         <div style="font-weight: 700; font-size: 13px; color: #38bdf8; margin-bottom: 3px;">🏛️ Ajay Kumar Garg Engineering College</div>
-        <div style="font-size: 11px; color: #94a3b8;">AWS Cloud Clubs — Basecamp</div>
+        <div style="font-size: 11px; color: #94a3b8;">AWS Cloud Clubs</div>
         <div style="font-size: 10px; color: #64748b; margin-top: 4px;">28.6757° N, 77.5020° E</div>
       </div>
     `);

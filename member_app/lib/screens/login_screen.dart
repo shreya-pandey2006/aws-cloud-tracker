@@ -183,6 +183,275 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showForgotPasswordDialog() {
+    final resetClubCodeController = TextEditingController(
+      text: _clubCodeController.text.trim().isNotEmpty ? _clubCodeController.text.trim() : 'AKGEC2026',
+    );
+    final resetEmailController = TextEditingController(text: _emailController.text.trim());
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    bool isResetting = false;
+    String? dialogError;
+    bool isNewPasswordVisible = false;
+    bool isConfirmPasswordVisible = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isResetting,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0F172A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFF1E293B)),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.lock_reset, color: Color(0xFF38BDF8), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Forgot Password',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Reset your password to log in',
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (dialogError != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          dialogError!,
+                          style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11),
+                        ),
+                      ),
+
+                    // Club Passcode
+                    const Text('Club Passcode', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1))),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: resetClubCodeController,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.vpn_key, color: Color(0xFF64748B), size: 16),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Email Address
+                    const Text('Registered Email', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1))),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: resetEmailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.email, color: Color(0xFF64748B), size: 16),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        hintText: 'student@akgec.ac.in',
+                        hintStyle: const TextStyle(color: Color(0xFF475569), fontSize: 12),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // New Password
+                    const Text('New Password', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1))),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: newPasswordController,
+                      obscureText: !isNewPasswordVisible,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B), size: 16),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            isNewPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: const Color(0xFF64748B),
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              isNewPasswordVisible = !isNewPasswordVisible;
+                            });
+                          },
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        hintText: 'At least 6 characters',
+                        hintStyle: const TextStyle(color: Color(0xFF475569), fontSize: 12),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Confirm New Password
+                    const Text('Confirm New Password', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1))),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: confirmPasswordController,
+                      obscureText: !isConfirmPasswordVisible,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B), size: 16),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: const Color(0xFF64748B),
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              isConfirmPasswordVisible = !isConfirmPasswordVisible;
+                            });
+                          },
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        hintText: 'Re-enter new password',
+                        hintStyle: const TextStyle(color: Color(0xFF475569), fontSize: 12),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              actions: [
+                TextButton(
+                  onPressed: isResetting ? null : () => Navigator.of(dialogCtx).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF38BDF8),
+                    foregroundColor: const Color(0xFF0F172A),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: isResetting
+                      ? null
+                      : () async {
+                          final code = resetClubCodeController.text.trim();
+                          final email = resetEmailController.text.trim();
+                          final newPass = newPasswordController.text;
+                          final confirmPass = confirmPasswordController.text;
+
+                          if (code.isEmpty) {
+                            setDialogState(() => dialogError = 'Please enter your Club Passcode.');
+                            return;
+                          }
+                          if (email.isEmpty || !email.contains('@')) {
+                            setDialogState(() => dialogError = 'Please enter a valid registered email.');
+                            return;
+                          }
+                          if (newPass.length < 6) {
+                            setDialogState(() => dialogError = 'New password must be at least 6 characters.');
+                            return;
+                          }
+                          if (newPass != confirmPass) {
+                            setDialogState(() => dialogError = 'Passwords do not match.');
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isResetting = true;
+                            dialogError = null;
+                          });
+
+                          try {
+                            final result = await ApiService.resetPassword(
+                              clubCode: code,
+                              email: email,
+                              newPassword: newPass,
+                            );
+
+                            final MemberModel member = result['member'];
+
+                            if (!mounted) return;
+                            Navigator.of(dialogCtx).pop();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('✅ Password reset successfully! Logged in as ${member.name}'),
+                                backgroundColor: const Color(0xFF10B981),
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (_) => HomeScreen(member: member)),
+                            );
+                          } catch (err) {
+                            setDialogState(() {
+                              isResetting = false;
+                              dialogError = err.toString().replaceAll('Exception: ', '');
+                            });
+                          }
+                        },
+                  child: isResetting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F172A)),
+                        )
+                      : const Text('Reset & Sign In', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -556,7 +825,33 @@ class _LoginScreenState extends State<LoginScreen> {
                           contentPadding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                      const SizedBox(height: 22),
+
+                      // If Sign In mode, show Forgot Password button
+                      if (!_isRegisterMode) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _showForgotPasswordDialog,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ] else ...[
+                        const SizedBox(height: 22),
+                      ],
 
                       // Submit Button
                       SizedBox(

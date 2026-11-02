@@ -39,6 +39,40 @@ class ApiService {
     return {'token': token, 'member': member};
   }
 
+  static Future<Map<String, dynamic>> resetPassword({
+    required String clubCode,
+    required String email,
+    required String newPassword,
+  }) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl/auth/member/reset-password');
+
+    final res = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'clubCode': clubCode.trim(),
+        'email': email.trim(),
+        'newPassword': newPassword,
+      }),
+    );
+
+    final data = jsonDecode(res.body);
+    if (res.statusCode != 200) {
+      throw Exception(data['error'] ?? 'Password reset failed');
+    }
+
+    final token = data['token'];
+    final member = MemberModel.fromJson(data['user']);
+    await StorageService.saveAuth(token, member);
+
+    return {
+      'token': token,
+      'member': member,
+      'message': data['message'] ?? 'Password reset successfully',
+    };
+  }
+
   static Future<Map<String, dynamic>> register({
     required String clubCode,
     required String name,
