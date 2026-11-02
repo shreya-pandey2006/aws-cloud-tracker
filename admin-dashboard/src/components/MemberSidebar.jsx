@@ -192,7 +192,14 @@ export default function MemberSidebar({
             return (
               <div
                 key={member.id}
-                onClick={() => onSelectMember(member.id)}
+                onClick={() => {
+                  if (selectedMemberId === member.id) {
+                    onSelectMember(null);
+                    setTimeout(() => onSelectMember(member.id), 30);
+                  } else {
+                    onSelectMember(member.id);
+                  }
+                }}
                 style={{
                   backgroundColor: isSelected ? '#1e293b' : '#111827',
                   border: isSelected

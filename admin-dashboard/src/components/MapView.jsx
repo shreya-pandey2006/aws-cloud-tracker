@@ -30,6 +30,9 @@ export default function MapView({
   const historyMarkersRef = useRef([]);
   const [mapStyle, setMapStyle] = React.useState('dark'); // 'dark' | 'streets' | 'satellite'
   const tileLayerRef = useRef(null);
+  const lastFocusedMemberIdRef = useRef(null);
+  const onSelectMemberRef = useRef(onSelectMember);
+  onSelectMemberRef.current = onSelectMember;
 
   const getTileLayer = (style) => {
     if (style === 'streets') {
@@ -70,6 +73,51 @@ export default function MapView({
 
     // Custom Zoom controls at top right
     L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // AKGEC Campus Basecamp Landmark
+    const campusIcon = L.divIcon({
+      className: 'campus-basecamp-icon',
+      html: `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(15, 23, 42, 0.92);
+          border: 1.5px solid #38bdf8;
+          border-radius: 8px;
+          padding: 4px 10px;
+          color: #f8fafc;
+          font-family: sans-serif;
+          font-size: 11px;
+          font-weight: 700;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+          white-space: nowrap;
+          cursor: pointer;
+        ">
+          <span style="font-size: 14px;">🏛️</span>
+          <span>AKGEC Campus HQ</span>
+        </div>
+      `,
+      iconSize: [145, 30],
+      iconAnchor: [72, 15]
+    });
+
+    const campusMarker = L.marker([28.6757, 77.5020], { icon: campusIcon }).addTo(map);
+    campusMarker.bindPopup(`
+      <div style="font-family: sans-serif; padding: 6px 10px; min-width: 200px;">
+        <div style="font-weight: 700; font-size: 13px; color: #38bdf8; margin-bottom: 3px;">🏛️ Ajay Kumar Garg Engineering College</div>
+        <div style="font-size: 11px; color: #94a3b8;">AWS Cloud Clubs — Basecamp Headquarters</div>
+        <div style="font-size: 10px; color: #64748b; margin-top: 4px;">28.6757° N, 77.5020° E</div>
+      </div>
+    `);
+
+    // Clicking anywhere on map canvas deselects member
+    map.on('click', () => {
+      lastFocusedMemberIdRef.current = null;
+      if (onSelectMemberRef.current) {
+        onSelectMemberRef.current(null);
+      }
+    });
 
     mapRef.current = map;
 
@@ -231,7 +279,10 @@ export default function MapView({
           }, 50);
         });
 
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+          if (e && e.originalEvent) {
+            e.originalEvent._stopped = true;
+          }
           onSelectMember(member.id);
         });
 
@@ -249,11 +300,19 @@ export default function MapView({
     });
   }, [members, onSelectMember, onLoadHistory]);
 
-  // Handle selected member focus
+  // Handle selected member focus (only triggers camera flyTo when a new member is selected)
   useEffect(() => {
-    if (!selectedMemberId || !mapRef.current) return;
+    if (!selectedMemberId || !mapRef.current) {
+      lastFocusedMemberIdRef.current = null;
+      return;
+    }
+
+    // Do not re-fly if this member is already the active focus (prevents hijacking on periodic location updates)
+    if (lastFocusedMemberIdRef.current === selectedMemberId) return;
+
     const member = members.find(m => m.id === selectedMemberId);
     if (member && member.last_latitude && member.last_longitude) {
+      lastFocusedMemberIdRef.current = selectedMemberId;
       mapRef.current.flyTo([member.last_latitude, member.last_longitude], 16, {
         duration: 1.2
       });
@@ -351,11 +410,22 @@ export default function MapView({
   // Actions
   const handleRecenterBasecamp = () => {
     if (!mapRef.current) return;
+    lastFocusedMemberIdRef.current = null;
+    if (onSelectMember) {
+      onSelectMember(null);
+    }
+    mapRef.current.closePopup();
     mapRef.current.flyTo([28.6757, 77.5020], 16, { duration: 1 });
   };
 
   const handleFitAllMembers = () => {
     if (!mapRef.current || members.length === 0) return;
+    lastFocusedMemberIdRef.current = null;
+    if (onSelectMember) {
+      onSelectMember(null);
+    }
+    mapRef.current.closePopup();
+
     const activePoints = members
       .filter(m => m.last_latitude && m.last_longitude)
       .map(m => [m.last_latitude, m.last_longitude]);
