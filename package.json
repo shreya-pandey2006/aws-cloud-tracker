@@ -1,0 +1,25 @@
+{
+  "name": "club-member-live-location-tracking-system",
+  "version": "1.0.0",
+  "description": "GPS-based Club Member Live Location Tracking System with Mobile App and Admin Dashboard",
+  "scripts": {
+    "server": "npm --prefix server start",
+    "admin": "npm --prefix admin-dashboard run dev",
+    "flutter:run": "cd member_app && flutter run",
+    "flutter:apk": "cd member_app && flutter build apk --release"
+  },
+  "keywords": [
+    "gps-tracking",
+    "real-time",
+    "socket.io",
+    "flutter",
+    "react",
+    "leaflet",
+    "openstreetmap",
+    "geofencing",
+    "sos"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}
+

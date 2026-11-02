@@ -5,11 +5,17 @@ const { signToken, verifyToken } = require('../auth');
 
 const router = express.Router();
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\+?[0-9\s-]{10,15}$/;
+
 // Admin Login
 router.post('/admin/login', (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+  if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
+    return res.status(400).json({ error: 'A valid admin email address is required' });
+  }
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Password is required' });
   }
 
   const club = db.prepare('SELECT * FROM clubs WHERE admin_email = ?').get(email.toLowerCase().trim());
@@ -47,8 +53,11 @@ router.post('/admin/login', (req, res) => {
 // Member Login
 router.post('/member/login', (req, res) => {
   const { email, password, clubCode } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+  if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
+    return res.status(400).json({ error: 'A valid email address is required' });
+  }
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Password is required' });
   }
 
   let memberQuery = 'SELECT m.*, c.name as club_name, c.code as club_code FROM members m JOIN clubs c ON m.club_id = c.id WHERE LOWER(m.email) = ?';
@@ -61,7 +70,7 @@ router.post('/member/login', (req, res) => {
 
   const member = db.prepare(memberQuery).get(...queryParams);
   if (!member) {
-    return res.status(401).json({ error: 'Invalid member credentials or club code' });
+    return res.status(401).json({ error: 'Invalid member credentials or club passcode' });
   }
 
   const isMatch = bcrypt.compareSync(password, member.password_hash);
@@ -92,13 +101,32 @@ router.post('/member/login', (req, res) => {
 // Member Registration
 router.post('/member/register', (req, res) => {
   const { clubCode, name, email, phone, emergencyContact, password } = req.body;
-  if (!clubCode || !name || !email || !password) {
-    return res.status(400).json({ error: 'Club code, name, email and password are required' });
+
+  // Validate required fields
+  if (!clubCode || typeof clubCode !== 'string' || clubCode.trim().length < 3) {
+    return res.status(400).json({ error: 'A valid club passcode (at least 3 characters) is required' });
+  }
+  if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 60) {
+    return res.status(400).json({ error: 'Full name must be between 2 and 60 characters' });
+  }
+  if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim()) || email.trim().length > 100) {
+    return res.status(400).json({ error: 'A valid email address (up to 100 characters) is required' });
+  }
+  if (!password || typeof password !== 'string' || password.length < 6 || password.length > 100) {
+    return res.status(400).json({ error: 'Password must be between 6 and 100 characters' });
+  }
+
+  // Validate optional phone numbers if supplied
+  if (phone && (typeof phone !== 'string' || !PHONE_REGEX.test(phone.trim()))) {
+    return res.status(400).json({ error: 'Phone number format is invalid (must be 10-15 digits)' });
+  }
+  if (emergencyContact && (typeof emergencyContact !== 'string' || !PHONE_REGEX.test(emergencyContact.trim()))) {
+    return res.status(400).json({ error: 'Emergency contact format is invalid (must be 10-15 digits)' });
   }
 
   const club = db.prepare('SELECT * FROM clubs WHERE UPPER(code) = ?').get(clubCode.toUpperCase().trim());
   if (!club) {
-    return res.status(404).json({ error: 'Club with this code does not exist' });
+    return res.status(404).json({ error: 'Invalid club passcode. No club found with this code.' });
   }
 
   const existingMember = db.prepare('SELECT id FROM members WHERE LOWER(email) = ?').get(email.toLowerCase().trim());
@@ -118,8 +146,8 @@ router.post('/member/register', (req, res) => {
     club.id,
     name.trim(),
     email.toLowerCase().trim(),
-    phone || '',
-    emergencyContact || '',
+    phone ? phone.trim() : '',
+    emergencyContact ? emergencyContact.trim() : '',
     passwordHash
   );
 
@@ -131,21 +159,31 @@ router.post('/member/register', (req, res) => {
     email: email.toLowerCase().trim()
   });
 
+  const newMemberUser = {
+    id: memberId,
+    club_id: club.id,
+    clubId: club.id,
+    clubName: club.name,
+    clubCode: club.code,
+    name: name.trim(),
+    email: email.toLowerCase().trim(),
+    phone: phone || '',
+    emergency_contact: emergencyContact || '',
+    role: 'member',
+    status: 'offline',
+    is_sharing_location: 0,
+    created_at: new Date().toISOString()
+  };
+
+  const io = req.app.get('io');
+  if (io) {
+    const clubRoom = club.id.startsWith('club_') ? club.id : `club_${club.id}`;
+    io.to(clubRoom).emit('member:joined', newMemberUser);
+  }
+
   return res.status(201).json({
     token,
-    user: {
-      id: memberId,
-      clubId: club.id,
-      clubName: club.name,
-      clubCode: club.code,
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      phone: phone || '',
-      emergency_contact: emergencyContact || '',
-      role: 'member',
-      status: 'offline',
-      is_sharing_location: 0
-    }
+    user: newMemberUser
   });
 });
 

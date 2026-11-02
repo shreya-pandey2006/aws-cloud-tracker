@@ -5,19 +5,18 @@ import {
   Users,
   ShieldAlert,
   MapPin,
-  Play,
-  Square,
   Bell,
   LogOut,
-  Sparkles
+  Settings
 } from 'lucide-react';
+import { getBackendServerUrl } from '../services/api';
 
 export default function Navbar({
   club,
   admin,
   stats,
-  simulatorActive,
-  onToggleSimulator,
+  isConnected,
+  onOpenServerSettings,
   onOpenGeofences,
   onOpenAlerts,
   unresolvedAlertCount,
@@ -51,33 +50,41 @@ export default function Navbar({
         </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '15px', fontWeight: '700', letterSpacing: '-0.02em', color: '#f8fafc' }}>
-              {club?.name || 'AWS Cloud Clubs — AKGEC'}
+            <h1 style={{ fontSize: '15px', fontWeight: '700', letterSpacing: '-0.02em', color: '#f8fafc', margin: 0 }}>
+              AWS Cloud Clubs
             </h1>
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '2px 8px',
-              borderRadius: '9999px',
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              fontSize: '11px',
-              fontWeight: '600',
-              color: '#34d399'
-            }}>
+            <span
+              onClick={onOpenServerSettings}
+              title={`Gateway: ${getBackendServerUrl()} (Click to change)`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 8px',
+                borderRadius: '9999px',
+                backgroundColor: isConnected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                border: isConnected ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                fontSize: '11px',
+                fontWeight: '600',
+                color: isConnected ? '#34d399' : '#f87171',
+                cursor: 'pointer'
+              }}
+            >
               <span style={{
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#10b981',
-                boxShadow: '0 0 8px #10b981'
+                backgroundColor: isConnected ? '#10b981' : '#ef4444',
+                boxShadow: isConnected ? '0 0 8px #10b981' : 'none'
               }} />
-              LIVE
+              {isConnected ? 'LIVE' : 'CONNECTING'}
             </span>
           </div>
-          <p style={{ fontSize: '11px', color: '#64748b' }}>
-            Club Passcode: <strong style={{ color: '#94a3b8' }}>{club?.code || 'AKGEC2026'}</strong>
+          <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0 0', fontWeight: '500' }}>
+            Ajay Kumar Garg Engineering College
+          </p>
+          <p style={{ fontSize: '10px', color: '#64748b', margin: '1px 0 0 0' }}>
+            Club Passcode: <strong style={{ color: '#cbd5e1' }}>{club?.code || 'AKGEC2026'}</strong>
           </p>
         </div>
       </div>
@@ -141,29 +148,6 @@ export default function Navbar({
 
       {/* Actions & Admin Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Simulator Toggle Button */}
-        <button
-          onClick={onToggleSimulator}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '7px 12px',
-            backgroundColor: simulatorActive ? 'rgba(245, 158, 11, 0.15)' : '#1e293b',
-            border: simulatorActive ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid #334155',
-            borderRadius: '8px',
-            color: simulatorActive ? '#fcd34d' : '#94a3b8',
-            fontSize: '12px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          title={simulatorActive ? 'Click to stop simulated demo fleet' : 'Click to start simulated demo fleet'}
-        >
-          {simulatorActive ? <Square size={14} color="#f59e0b" fill="#f59e0b" /> : <Play size={14} color="#10b981" fill="#10b981" />}
-          {simulatorActive ? 'Stop Demo Fleet' : 'Demo Fleet'}
-        </button>
-
         {/* Geofences Button */}
         <button
           onClick={onOpenGeofences}
@@ -222,6 +206,27 @@ export default function Navbar({
               {unresolvedAlertCount}
             </span>
           )}
+        </button>
+
+        {/* Server Gateway Settings */}
+        <button
+          onClick={onOpenServerSettings}
+          title={`Backend Gateway: ${getBackendServerUrl()}`}
+          style={{
+            position: 'relative',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            backgroundColor: '#1e293b',
+            border: '1px solid #334155',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: '#94a3b8'
+          }}
+        >
+          <Settings size={17} />
         </button>
 
         {/* Divider */}

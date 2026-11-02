@@ -47,6 +47,8 @@ const io = new Server(server, {
   pingInterval: 10000
 });
 
+app.set('io', io);
+
 // Setup Fleet Movement Simulator
 const simulator = new MemberMovementSimulator(io);
 
@@ -125,7 +127,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Server Port: http://localhost:${PORT}`);
   console.log(`📱 Member Web View: http://localhost:${PORT}/member`);
   console.log(`📡 Socket.io: ws://localhost:${PORT}`);
-  console.log(`🔑 Admin Demo: admin@akgec.awscloudclubs.com / admin123`);
-  console.log(`📱 Member Demo: alex@akgec.awscloudclubs.com / member123`);
+  console.log(`🔑 Admin Account: admin@akgec.awscloudclubs.com / admin123`);
+  console.log(`📋 Club Passcode: AKGEC2026 (Members register via Mobile App)`);
   console.log(`=======================================================`);
 });

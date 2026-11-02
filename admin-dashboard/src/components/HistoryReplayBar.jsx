@@ -1,5 +1,6 @@
 import React from 'react';
 import { Route, Clock, X, Navigation } from 'lucide-react';
+import { formatTimeIst } from '../utils/time';
 
 export default function HistoryReplayBar({
   historyTrail,
@@ -11,8 +12,8 @@ export default function HistoryReplayBar({
   const firstPoint = historyTrail[0];
   const lastPoint = historyTrail[historyTrail.length - 1];
 
-  const startTime = firstPoint?.timestamp ? new Date(firstPoint.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-  const endTime = lastPoint?.timestamp ? new Date(lastPoint.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const startTime = firstPoint?.timestamp ? formatTimeIst(firstPoint.timestamp) : '';
+  const endTime = lastPoint?.timestamp ? formatTimeIst(lastPoint.timestamp) : '';
 
   return (
     <div style={{
@@ -20,7 +21,7 @@ export default function HistoryReplayBar({
       bottom: '24px',
       left: '50%',
       transform: 'translateX(-50%)',
-      zIndex: 25,
+      zIndex: 2000,
       backgroundColor: 'rgba(15, 23, 42, 0.95)',
       backdropFilter: 'blur(12px)',
       border: '1px solid #38bdf8',
@@ -46,10 +47,10 @@ export default function HistoryReplayBar({
         </div>
         <div>
           <div style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-            Location History Trail: {member?.name || 'Member'}
+            Travel Route: {member?.name || 'Member'}
           </div>
           <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-            {historyTrail.length} breadcrumb waypoints recorded
+            {historyTrail.length} location checkpoints recorded
           </div>
         </div>
       </div>
@@ -79,7 +80,7 @@ export default function HistoryReplayBar({
         }}
       >
         <X size={14} />
-        Exit Trail
+        Close Route View
       </button>
     </div>
   );

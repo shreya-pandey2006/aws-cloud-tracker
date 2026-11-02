@@ -15,7 +15,7 @@ export default function AlertBanner({ alerts, onFocusMember, onResolveAlert }) {
       top: '16px',
       left: '50%',
       transform: 'translateX(-50%)',
-      zIndex: 35,
+      zIndex: 2000,
       maxWidth: '680px',
       width: '90%',
       backgroundColor: isSos ? 'rgba(185, 28, 28, 0.95)' : 'rgba(30, 58, 138, 0.95)',

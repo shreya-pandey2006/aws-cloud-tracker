@@ -16,6 +16,11 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+function getClubRoom(clubId) {
+  if (!clubId) return 'club_akgec_aws_01';
+  return clubId.startsWith('club_') ? clubId : `club_${clubId}`;
+}
+
 function setupSocketIO(io, simulator) {
   io.on('connection', (socket) => {
     console.log(`🔌 Client connected: [${socket.id}]`);
@@ -30,16 +35,17 @@ function setupSocketIO(io, simulator) {
       currentMemberId = memberId || null;
       userRole = role || 'member';
 
-      socket.join(`club_${currentClubId}`);
+      const room = getClubRoom(currentClubId);
+      socket.join(room);
       if (memberId) {
         socket.join(`member_${memberId}`);
       }
 
-      console.log(`👤 Socket [${socket.id}] joined room club_${currentClubId} as ${userRole} ${memberId || ''}`);
+      console.log(`👤 Socket [${socket.id}] joined room ${room} as ${userRole} ${memberId || ''}`);
 
       if (userRole === 'member' && currentMemberId) {
         db.prepare("UPDATE members SET status = 'active', last_seen_at = datetime('now') WHERE id = ?").run(currentMemberId);
-        io.to(`club_${currentClubId}`).emit('member:status_changed', {
+        io.to(room).emit('member:status_changed', {
           memberId: currentMemberId,
           status: 'active'
         });
@@ -64,9 +70,25 @@ function setupSocketIO(io, simulator) {
         return;
       }
 
+      const lat = Number(latitude);
+      const lon = Number(longitude);
+      if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        return;
+      }
+
+      const acc = Math.max(0, Number(accuracy) || 5.0);
+      const spd = Math.max(0, Number(speed) || 0.0);
+      const hdg = Math.min(360, Math.max(0, Number(heading) || 0.0));
+      const alt = Number(altitude) || 0.0;
+      const bat = Math.min(100, Math.max(0, Math.round(Number(battery) || 100)));
+
       // Check member's current sharing consent
       const member = db.prepare('SELECT id, name, is_sharing_location FROM members WHERE id = ?').get(memberId);
-      if (!member || !member.is_sharing_location) {
+      if (!member) {
+        socket.emit('auth:revoked', { memberId, error: 'You cannot send the SOS as you are no longer a member of this club.' });
+        return;
+      }
+      if (!member.is_sharing_location) {
         // Member has paused location sharing
         return;
       }
@@ -85,26 +107,27 @@ function setupSocketIO(io, simulator) {
               last_seen_at = datetime('now'),
               status = 'active'
           WHERE id = ?
-        `).run(latitude, longitude, accuracy, speed, heading, altitude, battery, memberId);
+        `).run(lat, lon, acc, spd, hdg, alt, bat, memberId);
 
         // 2. Insert into history trail
         db.prepare(`
           INSERT INTO location_history (
             member_id, latitude, longitude, accuracy, speed, heading, altitude, battery
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(memberId, latitude, longitude, accuracy, speed, heading, altitude, battery);
+        `).run(memberId, lat, lon, acc, spd, hdg, alt, bat);
 
         // 3. Broadcast to all admins monitoring this club
-        io.to(`club_${clubId}`).emit('member:location_changed', {
+        const room = getClubRoom(clubId);
+        io.to(room).emit('member:location_changed', {
           memberId,
           name: member.name,
-          latitude,
-          longitude,
-          accuracy,
-          speed,
-          heading,
-          altitude,
-          battery,
+          latitude: lat,
+          longitude: lon,
+          accuracy: acc,
+          speed: spd,
+          heading: hdg,
+          altitude: alt,
+          battery: bat,
           status: 'active',
           isSharing: true,
           lastSeenAt: new Date().toISOString()
@@ -130,7 +153,7 @@ function setupSocketIO(io, simulator) {
                 VALUES (?, ?, ?, 'geofence_enter', 'info', ?, ?, ?, 0)
               `).run(alertId, clubId, memberId, msg, latitude, longitude);
 
-              io.to(`club_${clubId}`).emit('alert:new', {
+              io.to(room).emit('alert:new', {
                 id: alertId,
                 clubId,
                 memberId,
@@ -140,7 +163,8 @@ function setupSocketIO(io, simulator) {
                 message: msg,
                 latitude,
                 longitude,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                created_at: new Date().toISOString()
               });
             }
           }
@@ -166,8 +190,9 @@ function setupSocketIO(io, simulator) {
       `).run(isSharing, status, memberId);
 
       const member = db.prepare('SELECT name FROM members WHERE id = ?').get(memberId);
+      const room = getClubRoom(clubId);
 
-      io.to(`club_${clubId}`).emit('member:status_changed', {
+      io.to(room).emit('member:status_changed', {
         memberId,
         name: member ? member.name : '',
         status,
@@ -182,19 +207,47 @@ function setupSocketIO(io, simulator) {
     socket.on('member:sos', ({ memberId, latitude, longitude, message, clubId = currentClubId || 'club_akgec_aws_01' }) => {
       if (!memberId) return;
 
-      const member = db.prepare('SELECT name, phone, emergency_contact FROM members WHERE id = ?').get(memberId);
+      const cleanMemberId = String(memberId).trim();
+      const member = db.prepare('SELECT name, phone, emergency_contact, club_id FROM members WHERE id = ?').get(cleanMemberId);
+
+      // SECURITY CHECK: If member does NOT exist in the database (deleted by admin), REJECT IMMEDIATELY!
+      if (!member) {
+        console.warn(`[Blocked] SOS attempt from non-existent or deleted member: ${cleanMemberId}`);
+        socket.emit('auth:revoked', { memberId: cleanMemberId, error: 'You cannot send the SOS as you are no longer a member of this club.' });
+        return;
+      }
+
+      const effectiveClubId = member.club_id || clubId;
+
+      // Deduplication: prevent rapid double-trigger within 8 seconds
+      const recentAlert = db.prepare(`
+        SELECT id, created_at FROM alerts
+        WHERE member_id = ? AND type = 'sos' AND resolved = 0
+        ORDER BY created_at DESC
+        LIMIT 1
+      `).get(cleanMemberId);
+
+      if (recentAlert) {
+        const rawTs = recentAlert.created_at ? recentAlert.created_at.replace(' ', 'T') : '';
+        const ageMs = Date.now() - new Date(rawTs).getTime();
+        if (!isNaN(ageMs) && ageMs < 8000) {
+          console.log(`[Sockets Deduplicate] Reusing recent SOS ${recentAlert.id} for member ${cleanMemberId} (${ageMs}ms ago)`);
+          return;
+        }
+      }
+
       const alertId = 'sos_' + Date.now().toString(36);
-      const alertMsg = message || `EMERGENCY SOS: Member ${member ? member.name : memberId} pressed distress alert!`;
+      const alertMsg = message || `EMERGENCY SOS: Member ${member ? member.name : cleanMemberId} pressed distress alert!`;
 
       db.prepare(`
         INSERT INTO alerts (id, club_id, member_id, type, severity, message, latitude, longitude, resolved)
         VALUES (?, ?, ?, 'sos', 'critical', ?, ?, ?, 0)
-      `).run(alertId, clubId, memberId, alertMsg, latitude || 0, longitude || 0);
+      `).run(alertId, effectiveClubId, cleanMemberId, alertMsg, latitude || 0, longitude || 0);
 
       const alertPayload = {
         id: alertId,
-        clubId,
-        memberId,
+        clubId: effectiveClubId,
+        memberId: cleanMemberId,
         memberName: member ? member.name : 'Club Member',
         memberPhone: member ? member.phone : '',
         emergencyContact: member ? member.emergency_contact : '',
@@ -203,21 +256,23 @@ function setupSocketIO(io, simulator) {
         message: alertMsg,
         latitude,
         longitude,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString()
       };
 
-      // Broadcast urgent SOS to admin dashboards
-      io.to(`club_${clubId}`).emit('alert:sos', alertPayload);
-      io.to(`club_${clubId}`).emit('alert:new', alertPayload);
+      // Broadcast urgent SOS to admin dashboards (single event emission)
+      const room = getClubRoom(effectiveClubId);
+      io.to(room).emit('alert:sos', alertPayload);
 
-      console.log(`🚨 SOS DISTRESS ALERT BROADCASTED for Member [${memberId}]!`);
+      console.log(`🚨 SOS DISTRESS ALERT BROADCASTED for Member [${cleanMemberId}]!`);
     });
 
-    // Admin toggles demo fleet simulator
+    // Admin toggles demo fleet simulator (no-op)
     socket.on('simulator:toggle', ({ clubId = currentClubId || 'club_akgec_aws_01' }) => {
       if (simulator) {
         const isRunning = simulator.toggle();
-        io.to(`club_${clubId}`).emit('simulator:status', { isRunning });
+        const room = getClubRoom(clubId);
+        io.to(room).emit('simulator:status', { isRunning });
       }
     });
 
@@ -229,7 +284,8 @@ function setupSocketIO(io, simulator) {
         setTimeout(() => {
           try {
             db.prepare("UPDATE members SET status = 'offline' WHERE id = ? AND is_sharing_location = 0").run(currentMemberId);
-            io.to(`club_${currentClubId}`).emit('member:status_changed', {
+            const room = getClubRoom(currentClubId);
+            io.to(room).emit('member:status_changed', {
               memberId: currentMemberId,
               status: 'offline'
             });

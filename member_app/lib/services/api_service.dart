@@ -99,7 +99,7 @@ class ApiService {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl/alerts/sos');
 
-    await http.post(
+    final res = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
@@ -109,6 +109,19 @@ class ApiService {
         'message': message ?? 'EMERGENCY SOS: Member requires immediate assistance!',
       }),
     );
+
+    if (res.statusCode >= 400) {
+      try {
+        final data = jsonDecode(res.body);
+        final errMsg = data['error'] ?? data['message'] ?? 'You cannot send the SOS as you are no longer a member of this club.';
+        throw Exception(errMsg);
+      } catch (e) {
+        if (e is Exception && !e.toString().contains('FormatException')) {
+          rethrow;
+        }
+        throw Exception('You cannot send the SOS as you are no longer a member of this club.');
+      }
+    }
   }
 }
 

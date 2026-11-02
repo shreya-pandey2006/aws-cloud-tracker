@@ -11,6 +11,7 @@ class SocketService {
     required String memberId,
     Function()? onConnected,
     Function(dynamic)? onAlert,
+    Function(String?)? onRevoked,
   }) async {
     disconnect();
 
@@ -38,6 +39,21 @@ class SocketService {
 
     _socket!.onDisconnect((reason) {
       debugPrint('⚠️ Disconnected from socket: $reason');
+    });
+
+    _socket!.on('auth:revoked', (data) {
+      debugPrint('⚠️ Member account revoked by club admin: $data');
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : 'You cannot send the SOS as you are no longer a member of this club.';
+      if (onRevoked != null) onRevoked(msg);
+    });
+
+    _socket!.on('member:removed', (data) {
+      if (data is Map && data['memberId'] == memberId) {
+        debugPrint('⚠️ Member removed from club by admin');
+        if (onRevoked != null) onRevoked('You cannot send the SOS as you are no longer a member of this club.');
+      }
     });
 
     if (onAlert != null) {

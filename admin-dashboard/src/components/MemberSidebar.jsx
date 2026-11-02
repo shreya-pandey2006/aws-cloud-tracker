@@ -10,15 +10,18 @@ import {
   Route,
   ChevronRight,
   ShieldAlert,
-  UserCheck
+  UserCheck,
+  Trash2
 } from 'lucide-react';
+import { formatTimeIst } from '../utils/time';
 
 export default function MemberSidebar({
   members,
   selectedMemberId,
   onSelectMember,
   onLoadHistory,
-  loadingHistory
+  loadingHistory,
+  onDeleteMember
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'live' | 'paused' | 'sos'
@@ -130,7 +133,52 @@ export default function MemberSidebar({
         flexDirection: 'column',
         gap: '10px'
       }}>
-        {filteredMembers.length === 0 ? (
+        {members.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '48px 20px',
+            color: '#64748b',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '50%',
+              backgroundColor: '#1e293b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '16px'
+            }}>
+              <UserCheck size={26} color="#64748b" />
+            </div>
+            <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', marginBottom: '8px' }}>
+              No Members Registered Yet
+            </h4>
+            <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.5', maxWidth: '280px' }}>
+              Students can register using the mobile app with Club Passcode:
+            </p>
+            <div style={{
+              marginTop: '10px',
+              padding: '6px 14px',
+              backgroundColor: '#1e293b',
+              border: '1px dashed #38bdf8',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '700',
+              color: '#38bdf8',
+              letterSpacing: '0.05em'
+            }}>
+              AKGEC2026
+            </div>
+            <p style={{ fontSize: '11px', color: '#64748b', marginTop: '12px' }}>
+              Once members sign in and share GPS, they appear here live.
+            </p>
+          </div>
+        ) : filteredMembers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 10px', color: '#64748b', fontSize: '13px' }}>
             No members found matching filter.
           </div>
@@ -249,7 +297,7 @@ export default function MemberSidebar({
                       }}
                     >
                       <Route size={12} />
-                      {loadingHistory === member.id ? 'Loading...' : 'Trail'}
+                      {loadingHistory === member.id ? 'Loading...' : 'Route'}
                     </button>
 
                     {member.phone && (
@@ -273,12 +321,32 @@ export default function MemberSidebar({
                         Call
                       </a>
                     )}
+
+                    {onDeleteMember && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteMember(member.id);
+                        }}
+                        title="Remove member from club"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '5px 7px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          borderRadius: '6px',
+                          color: '#f87171',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
 
                   <div style={{ fontSize: '10px', color: '#64748b' }}>
-                    {member.last_seen_at
-                      ? new Date(member.last_seen_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                      : 'Recently'}
+                    {formatTimeIst(member.last_seen_at)}
                   </div>
                 </div>
               </div>

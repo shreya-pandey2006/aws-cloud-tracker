@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Compass, Lock, Mail, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Compass, Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginModal({ isOpen, onLogin }) {
-  const [email, setEmail] = useState('admin@akgec.awscloudclubs.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -12,10 +13,31 @@ export default function LoginModal({ isOpen, onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setError('Please enter your admin email address.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setError('Please enter a valid email address (e.g. admin@akgec.awscloudclubs.com).');
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter your admin password.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await onLogin(email, password);
+      await onLogin(cleanEmail, password);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
@@ -36,7 +58,7 @@ export default function LoginModal({ isOpen, onLogin }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 100,
+      zIndex: 9999,
       backgroundImage: 'radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 60%)'
     }}>
       <div style={{
@@ -104,6 +126,7 @@ export default function LoginModal({ isOpen, onLogin }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@akgec.awscloudclubs.com"
                 required
                 style={{
                   width: '100%',
@@ -132,9 +155,10 @@ export default function LoginModal({ isOpen, onLogin }) {
             }}>
               <Lock size={16} color="#64748b" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
                 required
                 style={{
                   width: '100%',
@@ -146,6 +170,22 @@ export default function LoginModal({ isOpen, onLogin }) {
                   outline: 'none'
                 }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: '#64748b'
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 

@@ -1,7 +1,25 @@
-const API_BASE = import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '5173'
-    ? 'http://localhost:5000/api'
-    : `${window.location.origin}/api`);
+export function getBackendServerUrl() {
+  const custom = typeof window !== 'undefined' ? localStorage.getItem('club_backend_url') : null;
+  if (custom) return custom.replace(/\/$/, '');
+
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+  }
+
+  return 'https://aws-cloud-tracker.onrender.com';
+}
+
+export function setBackendServerUrl(url) {
+  if (url) {
+    localStorage.setItem('club_backend_url', url.trim().replace(/\/$/, ''));
+  } else {
+    localStorage.removeItem('club_backend_url');
+  }
+}
+
+export function getApiBase() {
+  return `${getBackendServerUrl()}/api`;
+}
 
 export function getAuthToken() {
   return localStorage.getItem('club_admin_token') || '';
@@ -36,16 +54,33 @@ async function request(endpoint, options = {}) {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await fetch(`${getApiBase()}${endpoint}`, {
     ...options,
     headers,
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Server request failed');
+  let data = null;
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+  } else {
+    try {
+      const text = await response.text();
+      data = { message: text.slice(0, 200) };
+    } catch {
+      data = null;
+    }
   }
-  return data;
+
+  if (!response.ok) {
+    const errorMsg = data?.error || data?.message || `Server request failed (${response.status})`;
+    throw new Error(errorMsg);
+  }
+  return data || {};
 }
 
 export const api = {
@@ -60,6 +95,11 @@ export const api = {
 
   // Members
   getMembers: () => request('/members'),
+
+  deleteMember: (id) =>
+    request(`/members/${id}`, {
+      method: 'DELETE',
+    }),
 
   getMemberHistory: (memberId, hours = 24, limit = 200) =>
     request(`/members/${memberId}/history?hours=${hours}&limit=${limit}`),
@@ -84,6 +124,16 @@ export const api = {
   resolveAlert: (id) =>
     request(`/alerts/${id}/resolve`, {
       method: 'PUT',
+    }),
+
+  deleteAlert: (id) =>
+    request(`/alerts/${id}`, {
+      method: 'DELETE',
+    }),
+
+  clearResolvedAlerts: () =>
+    request('/alerts/bulk/resolved', {
+      method: 'DELETE',
     }),
 
   // Simulator

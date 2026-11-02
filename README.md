@@ -51,7 +51,7 @@ graph TD
 
 ### 2. 🖥️ Central Admin Web Dashboard (React + Vite + Leaflet)
 - **Live Dispatch Map**: OpenStreetMap with custom animated SVG markers, heading direction pointers, and pulsing halos.
-- **Dual Map Views**: CartoDB Dark Matter for dispatch rooms and OpenStreetMap Street View for outdoor trail reconnaissance.
+- **Dual Map Views**: Watermark-Free OpenStreetMap Dark Tactical mode for dispatch rooms, Street View, and Satellite Imagery for outdoor campus reconnaissance.
 - **Member Directory & Live Filters**: Instant filtering by status: *All*, *Sharing Live*, *Paused*, *Offline*, and *SOS Distress*.
 - **Location History Trail & Breadcrumbs**: Click on any member to load their historical GPS breadcrumbs polyline with start/current pins and timestamps.
 - **Geofence Zone Management**: Interactive circle overlays with configurable radius (e.g., Basecamp, Summit Checkpoint, Safe Haven) with auto-alert triggers upon entry.
@@ -66,15 +66,14 @@ graph TD
 
 ---
 
-## 🔑 Default Demo Accounts
+## 🔑 Administrator & Member Access
 
 | Role | Email | Password | Club Passcode | Details |
 |---|---|---|---|---|
-| **Club Head / Admin** | `admin@akgec.awscloudclubs.com` | `admin123` | `AKGEC2026` | AKGEC Central Dispatch & Live Map Access |
-| **Member 1 (Alex Rivera)** | `alex@akgec.awscloudclubs.com` | `member123` | `AKGEC2026` | Club Captain & Cloud Lead |
-| **Member 2 (Jordan Lee)** | `jordan@akgec.awscloudclubs.com` | `member123` | `AKGEC2026` | Technical Secretary (CS Dept) |
-| **Member 3 (Taylor Smith)** | `taylor@akgec.awscloudclubs.com` | `member123` | `AKGEC2026` | Hackathon Head (ECE Dept) |
-| **Member 4 (Sam Patel)** | `sam@akgec.awscloudclubs.com` | `member123` | `AKGEC2026` | Cloud Solutions Lead (IT Dept) |
+| **Club Head / Dispatch Admin** | `admin@akgec.awscloudclubs.com` | `admin123` | `AKGEC2026` | AKGEC Central Dispatch & Live Map Access |
+| **Club Members / Students** | *Registered dynamically* | *Member chosen* | `AKGEC2026` | Real members register via the Mobile App or Mobile Web (`/member`) using Club Passcode `AKGEC2026` |
+
+> Zero hardcoded members or mock locations are stored in the system. When new members register and toggle location sharing ON, they appear live on the dispatch map in real-time.
 
 ---
 
@@ -94,7 +93,7 @@ cd admin-dashboard
 npm run dev
 ```
 - Open `http://localhost:5173` in your browser.
-- Click **"Auto-fill"** or sign in with `admin@apexclub.com` / `admin123`.
+- Sign in with `admin@akgec.awscloudclubs.com` / `admin123`.
 
 ### 3. Run Flutter Member Mobile App
 ```bash

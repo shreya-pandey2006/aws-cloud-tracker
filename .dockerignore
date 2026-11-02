@@ -4,3 +4,4 @@ node_modules
 member_app
 tracker.db*
 *.log
+

@@ -12,8 +12,14 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'alex@akgec.awscloudclubs.com');
-  final _passwordController = TextEditingController(text: 'member123');
+  bool _isRegisterMode = false;
+  bool _isPasswordVisible = false;
+
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emergencyController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _clubCodeController = TextEditingController(text: 'AKGEC2026');
 
   bool _isLoading = false;
@@ -21,24 +27,133 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
+    _emergencyController.dispose();
     _passwordController.dispose();
     _clubCodeController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _handleAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final clubCode = _clubCodeController.text.trim();
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final emergency = _emergencyController.text.trim();
+
+    // 1. Club Passcode validation
+    if (clubCode.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your Club Passcode (e.g. AKGEC2026).');
+      return;
+    }
+    if (clubCode.length < 3) {
+      setState(() => _errorMessage = 'Club Passcode must be at least 3 characters.');
+      return;
+    }
+    if (clubCode.length > 30) {
+      setState(() => _errorMessage = 'Club Passcode cannot exceed 30 characters.');
+      return;
+    }
+
+    // 2. Register-specific field validation
+    if (_isRegisterMode) {
+      if (name.isEmpty) {
+        setState(() => _errorMessage = 'Please enter your Full Name.');
+        return;
+      }
+      if (name.length < 2) {
+        setState(() => _errorMessage = 'Full Name must be at least 2 characters.');
+        return;
+      }
+      if (name.length > 60) {
+        setState(() => _errorMessage = 'Full Name cannot exceed 60 characters.');
+        return;
+      }
+      if (!RegExp(r"^[a-zA-Z\s.'-]+$").hasMatch(name)) {
+        setState(() => _errorMessage = 'Full Name should only contain letters and spaces.');
+        return;
+      }
+
+      // Phone format validation (optional, but validated if provided)
+      if (phone.isNotEmpty) {
+        final phoneRegExp = RegExp(r'^\+?[0-9\s-]{10,15}$');
+        if (!phoneRegExp.hasMatch(phone)) {
+          setState(() => _errorMessage = 'Please enter a valid 10-15 digit phone number.');
+          return;
+        }
+      }
+
+      // Emergency contact validation (optional, but validated if provided)
+      if (emergency.isNotEmpty) {
+        final phoneRegExp = RegExp(r'^\+?[0-9\s-]{10,15}$');
+        if (!phoneRegExp.hasMatch(emergency)) {
+          setState(() => _errorMessage = 'Please enter a valid 10-15 digit emergency contact number.');
+          return;
+        }
+        final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+        final cleanEmergency = emergency.replaceAll(RegExp(r'\D'), '');
+        if (cleanPhone.isNotEmpty && cleanEmergency == cleanPhone) {
+          setState(() => _errorMessage = 'Emergency contact must be different from your own phone number.');
+          return;
+        }
+      }
+    }
+
+    // 3. Email validation
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your email address.');
+      return;
+    }
+    final emailRegExp = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegExp.hasMatch(email)) {
+      setState(() => _errorMessage = 'Please enter a valid email address (e.g. name@akgec.ac.in).');
+      return;
+    }
+    if (email.length > 100) {
+      setState(() => _errorMessage = 'Email address cannot exceed 100 characters.');
+      return;
+    }
+
+    // 4. Password validation
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your password.');
+      return;
+    }
+    if (password.length < 6) {
+      setState(() => _errorMessage = 'Password must be at least 6 characters long.');
+      return;
+    }
+    if (password.length > 100) {
+      setState(() => _errorMessage = 'Password cannot exceed 100 characters.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final result = await ApiService.login(
-        email: _emailController.text,
-        password: _passwordController.text,
-        clubCode: _clubCodeController.text,
-      );
+      Map<String, dynamic> result;
+      if (_isRegisterMode) {
+        result = await ApiService.register(
+          clubCode: clubCode,
+          name: name,
+          email: email,
+          password: password,
+          phone: phone,
+          emergencyContact: emergency,
+        );
+      } else {
+        result = await ApiService.login(
+          email: email,
+          password: password,
+          clubCode: clubCode,
+        );
+      }
 
       final MemberModel member = result['member'];
 
@@ -59,14 +174,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _quickFill(String email, String pass, String code) {
-    setState(() {
-      _emailController.text = email;
-      _passwordController.text = pass;
-      _clubCodeController.text = code;
-    });
-  }
-
   void _showServerSettingsDialog() async {
     final currentUrl = await StorageService.getServerUrl();
     final urlController = TextEditingController(text: currentUrl);
@@ -82,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Use localhost for Web/Desktop, or 10.0.2.2 for Android Emulator, or your local LAN IP (e.g. 192.168.1.5) for physical phones:',
+              'Enter the live backend API URL (Render or local network IP):',
               style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -106,7 +213,23 @@ class _LoginScreenState extends State<LoginScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
             onPressed: () async {
-              await StorageService.setServerUrl(urlController.text.trim());
+              final rawUrl = urlController.text.trim();
+              if (rawUrl.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Server URL cannot be empty'), backgroundColor: Colors.red),
+                );
+                return;
+              }
+              if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('URL must start with http:// or https://'), backgroundColor: Colors.red),
+                );
+                return;
+              }
+              // Strip trailing slash if present
+              final sanitizedUrl = rawUrl.endsWith('/') ? rawUrl.substring(0, rawUrl.length - 1) : rawUrl;
+
+              await StorageService.setServerUrl(sanitizedUrl);
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
               if (mounted) {
@@ -129,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -145,30 +268,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Logo & Header
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      colors: [Color(0xFF38BDF8), Color(0xFF2563EB)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.35),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.location_on, color: Colors.white, size: 36),
+                  child: const Icon(Icons.location_on, color: Colors.white, size: 34),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 const Text(
                   'AWS Cloud Clubs',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                     letterSpacing: -0.5,
@@ -181,14 +304,84 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Live Member Tracking & Safety Dispatch',
+                  'Real-Time Member Tracking & Safety Dispatch',
                   style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
+
+                // Auth Mode Switcher (Sign In vs Register)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isRegisterMode = false;
+                              _errorMessage = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: !_isRegisterMode ? const Color(0xFF2563EB) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: !_isRegisterMode ? Colors.white : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isRegisterMode = true;
+                              _errorMessage = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _isRegisterMode ? const Color(0xFF2563EB) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'New Register',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _isRegisterMode ? Colors.white : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
 
                 // Error Message
                 if (_errorMessage != null)
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
@@ -202,9 +395,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                // Login Form Card
+                // Form Card
                 Container(
-                  padding: const EdgeInsets.all(22),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: const Color(0xFF111827),
                     borderRadius: BorderRadius.circular(16),
@@ -220,6 +413,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Club Passcode
                       const Text(
                         'Club Passcode',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
@@ -245,10 +439,41 @@ class _LoginScreenState extends State<LoginScreen> {
                           contentPadding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
 
+                      // If Register Mode, Full Name
+                      if (_isRegisterMode) ...[
+                        const Text(
+                          'Full Name',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _nameController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.person, color: Color(0xFF64748B), size: 18),
+                            filled: true,
+                            fillColor: const Color(0xFF0F172A),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            hintText: 'e.g. Rahul Sharma',
+                            hintStyle: const TextStyle(color: Color(0xFF475569)),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      // Email
                       const Text(
-                        'Member Email',
+                        'Email Address',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
                       ),
                       const SizedBox(height: 6),
@@ -268,13 +493,73 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(10),
                             borderSide: const BorderSide(color: Color(0xFF334155)),
                           ),
-                          hintText: 'member@akgec.awscloudclubs.com',
+                          hintText: 'student@akgec.ac.in',
                           hintStyle: const TextStyle(color: Color(0xFF475569)),
                           contentPadding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
 
+                      // If Register Mode, Phone & Emergency
+                      if (_isRegisterMode) ...[
+                        const Text(
+                          'Phone Number',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.phone, color: Color(0xFF64748B), size: 18),
+                            filled: true,
+                            fillColor: const Color(0xFF0F172A),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            hintText: '+91 98765 43210',
+                            hintStyle: const TextStyle(color: Color(0xFF475569)),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        const Text(
+                          'Emergency Contact (Optional)',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _emergencyController,
+                          keyboardType: TextInputType.phone,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.emergency, color: Color(0xFF64748B), size: 18),
+                            filled: true,
+                            fillColor: const Color(0xFF0F172A),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            hintText: '+91 91234 56789',
+                            hintStyle: const TextStyle(color: Color(0xFF475569)),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      // Password
                       const Text(
                         'Password',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
@@ -282,10 +567,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 6),
                       TextField(
                         controller: _passwordController,
-                        obscureText: true,
+                        obscureText: !_isPasswordVisible,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.lock, color: Color(0xFF64748B), size: 18),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                              color: const Color(0xFF64748B),
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
+                            tooltip: _isPasswordVisible ? 'Hide password' : 'Show password',
+                          ),
                           filled: true,
                           fillColor: const Color(0xFF0F172A),
                           border: OutlineInputBorder(
@@ -303,60 +601,31 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 22),
 
+                      // Submit Button
                       SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
+                            backgroundColor: _isRegisterMode ? const Color(0xFF2563EB) : const Color(0xFF10B981),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             elevation: 4,
-                            shadowColor: const Color(0xFF10B981).withValues(alpha: 0.4),
                           ),
-                          onPressed: _isLoading ? null : _handleLogin,
+                          onPressed: _isLoading ? null : _handleAuth,
                           child: _isLoading
                               ? const SizedBox(
                                   width: 22,
                                   height: 22,
                                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                                 )
-                              : const Text('Sign In & Start Tracking',
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                              : Text(
+                                  _isRegisterMode ? 'Register & Start Tracking' : 'Sign In & Start Tracking',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
                                 ),
                         ),
                       ),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Quick Demo Accounts Fill
-                const Text('Quick Demo Accounts',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    ActionChip(
-                      backgroundColor: const Color(0xFF1E293B),
-                      label: const Text('Alex Rivera', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
-                      onPressed: () => _quickFill('alex@akgec.awscloudclubs.com', 'member123', 'AKGEC2026'),
-                    ),
-                    ActionChip(
-                      backgroundColor: const Color(0xFF1E293B),
-                      label: const Text('Jordan Lee', style: TextStyle(color: Color(0xFF34D399), fontSize: 12)),
-                      onPressed: () => _quickFill('jordan@akgec.awscloudclubs.com', 'member123', 'AKGEC2026'),
-                    ),
-                    ActionChip(
-                      backgroundColor: const Color(0xFF1E293B),
-                      label: const Text('Taylor Smith', style: TextStyle(color: Color(0xFFFBBF24), fontSize: 12)),
-                      onPressed: () => _quickFill('taylor@akgec.awscloudclubs.com', 'member123', 'AKGEC2026'),
-                    ),
-                  ],
                 ),
               ],
             ),

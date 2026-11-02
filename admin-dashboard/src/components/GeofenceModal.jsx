@@ -4,62 +4,98 @@ import { X, MapPin, Plus, Trash2 } from 'lucide-react';
 export default function GeofenceModal({
   isOpen,
   onClose,
-  geofences,
+  geofences = [],
   onCreateGeofence,
   onDeleteGeofence
 }) {
   const [name, setName] = useState('');
-  const [latitude, setLatitude] = useState('37.7985');
-  const [longitude, setLongitude] = useState('-122.4660');
-  const [radiusMeters, setRadiusMeters] = useState('500');
+  const [latitude, setLatitude] = useState('28.6757');
+  const [longitude, setLongitude] = useState('77.5020');
+  const [radiusMeters, setRadiusMeters] = useState('300');
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
+  const safeGeofences = Array.isArray(geofences) ? geofences : [];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    setError('');
+
+    const cleanName = name.trim();
+    if (!cleanName || cleanName.length < 2 || cleanName.length > 100) {
+      setError('Zone name must be between 2 and 100 characters.');
+      return;
+    }
+
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    const rad = parseFloat(radiusMeters);
+
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      setError('Latitude must be a valid number between -90 and 90 degrees.');
+      return;
+    }
+
+    if (isNaN(lon) || lon < -180 || lon > 180) {
+      setError('Longitude must be a valid number between -180 and 180 degrees.');
+      return;
+    }
+
+    if (isNaN(rad) || rad < 10 || rad > 50000) {
+      setError('Radius must be between 10 meters and 50,000 meters (50km).');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
       await onCreateGeofence({
-        name: name.trim(),
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radiusMeters: parseFloat(radiusMeters)
+        name: cleanName,
+        latitude: lat,
+        longitude: lon,
+        radiusMeters: rad
       });
       setName('');
-      setRadiusMeters('500');
+      setRadiusMeters('300');
+      setError('');
     } catch (err) {
-      alert('Error creating geofence: ' + err.message);
+      setError(err.message || 'Failed to create geofence zone');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 50
-    }}>
-      <div style={{
-        backgroundColor: '#0f172a',
-        border: '1px solid #1e293b',
-        borderRadius: '16px',
-        width: '520px',
-        maxWidth: '92%',
-        maxHeight: '85vh',
-        overflow: 'hidden',
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
         display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-      }}>
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: '16px',
+          width: '520px',
+          maxWidth: '92%',
+          maxHeight: '85vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          position: 'relative'
+        }}
+      >
         {/* Header */}
         <div style={{
           padding: '16px 20px',
@@ -100,6 +136,20 @@ export default function GeofenceModal({
             <h3 style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '12px' }}>
               Create New Safe Zone / Geofence
             </h3>
+
+            {error && (
+              <div style={{
+                padding: '8px 12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '6px',
+                color: '#fca5a5',
+                fontSize: '12px',
+                marginBottom: '12px'
+              }}>
+                {error}
+              </div>
+            )}
 
             <div style={{ marginBottom: '10px' }}>
               <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Zone Name</label>
@@ -211,11 +261,11 @@ export default function GeofenceModal({
 
           {/* Active Geofences List */}
           <h3 style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '10px' }}>
-            Active Club Zones ({geofences.length})
+            Active Club Zones ({safeGeofences.length})
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {geofences.map((gf) => (
+            {safeGeofences.map((gf) => (
               <div
                 key={gf.id}
                 style={{

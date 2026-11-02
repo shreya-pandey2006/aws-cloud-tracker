@@ -12,3 +12,4 @@ services:
         value: 5000
       - key: JWT_SECRET
         generateValue: true
+

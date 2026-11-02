@@ -1,25 +1,124 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from './components/Navbar';
 import MapView from './components/MapView';
 import MemberSidebar from './components/MemberSidebar';
 import AlertBanner from './components/AlertBanner';
+import AlertsModal from './components/AlertsModal';
 import HistoryReplayBar from './components/HistoryReplayBar';
 import GeofenceModal from './components/GeofenceModal';
 import LoginModal from './components/LoginModal';
 
-import { api, getAuthToken, setAuthToken, getAdminUser, setAdminUser } from './services/api';
+import { api, getAuthToken, setAuthToken, getAdminUser, setAdminUser, getBackendServerUrl, setBackendServerUrl } from './services/api';
 import { initSocket, disconnectSocket, getSocket } from './services/socket';
 import { playEmergencyAlertSound } from './utils/audio';
+
+const isLegacyMockMember = (m) => {
+  if (!m) return false;
+  const name = (m.name || '').toLowerCase().trim();
+  const email = (m.email || '').toLowerCase().trim();
+  const id = m.id || m.memberId || m.member_id || '';
+  return ['alex rivera', 'jordan lee', 'taylor smith', 'sam patel'].includes(name)
+    || ['mem_01', 'mem_02', 'mem_03', 'mem_04'].includes(id)
+    || email.startsWith('alex@') || email.startsWith('jordan@') || email.startsWith('taylor@') || email.startsWith('sam@');
+};
+
+const DISMISSED_ALERTS_KEY = 'club_dismissed_alert_ids';
+
+function getDismissedAlertIds() {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_ALERTS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function persistDismissedAlertId(alertId) {
+  try {
+    const list = getDismissedAlertIds();
+    if (!list.includes(alertId)) {
+      list.push(alertId);
+      localStorage.setItem(DISMISSED_ALERTS_KEY, JSON.stringify(list.slice(-500)));
+    }
+  } catch (err) {
+    console.error('Failed to save dismissed alert to localStorage', err);
+  }
+}
+
+function persistDismissedAlertIds(alertIds) {
+  try {
+    const set = new Set(getDismissedAlertIds());
+    alertIds.forEach((id) => set.add(id));
+    localStorage.setItem(DISMISSED_ALERTS_KEY, JSON.stringify(Array.from(set).slice(-500)));
+  } catch (err) {
+    console.error('Failed to save dismissed alerts to localStorage', err);
+  }
+}
+
+const DISMISSED_MEMBERS_KEY = 'club_dismissed_member_ids';
+const DISMISSED_MEMBER_NAMES_KEY = 'club_dismissed_member_names';
+
+function getDismissedMemberIds() {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_MEMBERS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function getDismissedMemberNames() {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_MEMBER_NAMES_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function persistDismissedMemberId(memberId) {
+  try {
+    if (!memberId) return;
+    const list = getDismissedMemberIds();
+    if (!list.includes(memberId)) {
+      list.push(memberId);
+      localStorage.setItem(DISMISSED_MEMBERS_KEY, JSON.stringify(list.slice(-500)));
+    }
+  } catch (err) {
+    console.error('Failed to save dismissed member to localStorage', err);
+  }
+}
+
+function persistDismissedMemberName(name) {
+  try {
+    if (!name) return;
+    const clean = String(name).toLowerCase().trim();
+    if (!clean) return;
+    const list = getDismissedMemberNames();
+    if (!list.includes(clean)) {
+      list.push(clean);
+      localStorage.setItem(DISMISSED_MEMBER_NAMES_KEY, JSON.stringify(list.slice(-500)));
+    }
+  } catch (err) {
+    console.error('Failed to save dismissed member name to localStorage', err);
+  }
+}
 
 export default function App() {
   const [adminUser, setUser] = useState(getAdminUser());
   const [isAuthenticated, setIsAuthenticated] = useState(!!getAuthToken());
   const [members, setMembers] = useState([]);
+  const membersRef = useRef(members);
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
+
   const [geofences, setGeofences] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [selectedMemberId, setSelectedMemberId] = useState(null);
   const [simulatorActive, setSimulatorActive] = useState(false);
   const [isGeofenceModalOpen, setIsGeofenceModalOpen] = useState(false);
+  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
+  const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
+  const [customServerUrl, setCustomServerUrl] = useState(getBackendServerUrl());
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [historyTrail, setHistoryTrail] = useState(null);
   const [historyMember, setHistoryMember] = useState(null);
   const [loadingHistoryId, setLoadingHistoryId] = useState(null);
@@ -27,17 +126,41 @@ export default function App() {
   // Load initial club data
   const loadDashboardData = useCallback(async () => {
     try {
-      const [membersRes, geofencesRes, alertsRes, simRes] = await Promise.all([
+      const [membersRes, geofencesRes, alertsRes] = await Promise.all([
         api.getMembers(),
         api.getGeofences('club_akgec_aws_01'),
-        api.getAlerts('club_akgec_aws_01'),
-        api.getSimulatorStatus()
+        api.getAlerts('club_akgec_aws_01')
       ]);
 
-      setMembers(membersRes.members || []);
+      const rawMembers = membersRes.members || [];
+      const dismissedMemberIds = new Set(getDismissedMemberIds());
+      const cleanMembers = rawMembers
+        .filter((m) => !isLegacyMockMember(m))
+        .filter((m) => !dismissedMemberIds.has(m.id));
+
+      const rawAlerts = alertsRes.alerts || [];
+      const dismissedIds = new Set(getDismissedAlertIds());
+      const dismissedMemberNames = new Set(getDismissedMemberNames());
+      const activeMemberIds = new Set(cleanMembers.map((m) => m.id));
+
+      const cleanAlerts = rawAlerts
+        .filter((a) => !isLegacyMockMember({ id: a.member_id, name: a.member_name }))
+        .filter((a) => !dismissedIds.has(a.id))
+        .filter((a) => {
+          const mId = a.member_id || a.memberId;
+          const aName = (a.member_name || a.memberName || '').toLowerCase().trim();
+          const aMsg = (a.message || '').toLowerCase();
+          if (mId && dismissedMemberIds.has(mId)) return false;
+          if (aName && dismissedMemberNames.has(aName)) return false;
+          if (Array.from(dismissedMemberNames).some((n) => aMsg.includes(n))) return false;
+          if (mId && !activeMemberIds.has(mId)) return false;
+          return true;
+        });
+
+      setMembers(cleanMembers);
       setGeofences(geofencesRes.geofences || []);
-      setAlerts(alertsRes.alerts || []);
-      setSimulatorActive(simRes.isRunning);
+      setAlerts(cleanAlerts);
+      setSimulatorActive(false);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     }
@@ -49,12 +172,21 @@ export default function App() {
 
     loadDashboardData();
 
-    const socket = initSocket('club_akgec_aws_01', () => {
-      console.log('Admin socket ready for live member telemetry');
-    });
+    const socket = initSocket(
+      'club_akgec_aws_01',
+      () => {
+        setIsSocketConnected(true);
+        loadDashboardData();
+        console.log('Admin socket ready for live member telemetry');
+      },
+      () => {
+        setIsSocketConnected(false);
+      }
+    );
 
     // Real-time location update event
     socket.on('member:location_changed', (data) => {
+      if (isLegacyMockMember(data)) return;
       setMembers((prev) =>
         prev.map((m) => {
           if (m.id === data.memberId) {
@@ -78,6 +210,7 @@ export default function App() {
 
     // Real-time status change event
     socket.on('member:status_changed', (data) => {
+      if (isLegacyMockMember(data)) return;
       setMembers((prev) =>
         prev.map((m) => {
           if (m.id === data.memberId) {
@@ -93,15 +226,54 @@ export default function App() {
       );
     });
 
+    // Real-time new member registration
+    socket.on('member:joined', (newMember) => {
+      if (isLegacyMockMember(newMember)) return;
+      setMembers((prev) => {
+        if (prev.some((m) => m.id === newMember.id)) return prev;
+        return [newMember, ...prev];
+      });
+    });
+
+    // Real-time member removal
+    socket.on('member:removed', ({ memberId }) => {
+      persistDismissedMemberId(memberId);
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      setAlerts((prev) => prev.filter((a) => a.member_id !== memberId && a.memberId !== memberId));
+    });
+
     // SOS Emergency Alert
     socket.on('alert:sos', (alertData) => {
+      const mId = alertData.memberId || alertData.member_id;
+      const mName = (alertData.memberName || alertData.member_name || '').toLowerCase().trim();
+      const aMsg = (alertData.message || '').toLowerCase();
+      const dismissedMemberIds = new Set(getDismissedMemberIds());
+      const dismissedMemberNames = new Set(getDismissedMemberNames());
+
+      if ((mId && dismissedMemberIds.has(mId)) ||
+          (mName && dismissedMemberNames.has(mName)) ||
+          Array.from(dismissedMemberNames).some((n) => aMsg.includes(n))) {
+        console.warn('Blocked incoming SOS from deleted member:', mId, mName);
+        return;
+      }
+
+      if (mId && membersRef.current.length > 0 && !membersRef.current.some((m) => m.id === mId)) {
+        console.warn('Blocked incoming SOS: member is not registered in club:', mId);
+        return;
+      }
+
+      if (isLegacyMockMember({ id: mId, name: alertData.memberName })) return;
+
       playEmergencyAlertSound();
-      setAlerts((prev) => [alertData, ...prev]);
+      setAlerts((prev) => {
+        if (prev.some((a) => a.id === alertData.id)) return prev;
+        return [alertData, ...prev];
+      });
 
       // Highlight member with SOS status
       setMembers((prev) =>
         prev.map((m) => {
-          if (m.id === alertData.memberId) {
+          if (m.id === mId) {
             return { ...m, status: 'sos' };
           }
           return m;
@@ -109,12 +281,50 @@ export default function App() {
       );
 
       // Auto-focus on emergency location
-      setSelectedMemberId(alertData.memberId);
+      if (mId) setSelectedMemberId(mId);
     });
 
     // General Alert (Geofence, etc.)
     socket.on('alert:new', (alertData) => {
-      setAlerts((prev) => [alertData, ...prev]);
+      const mId = alertData.memberId || alertData.member_id;
+      const mName = (alertData.memberName || alertData.member_name || '').toLowerCase().trim();
+      const aMsg = (alertData.message || '').toLowerCase();
+      const dismissedMemberIds = new Set(getDismissedMemberIds());
+      const dismissedMemberNames = new Set(getDismissedMemberNames());
+
+      if ((mId && dismissedMemberIds.has(mId)) ||
+          (mName && dismissedMemberNames.has(mName)) ||
+          Array.from(dismissedMemberNames).some((n) => aMsg.includes(n))) {
+        console.warn('Blocked incoming alert from deleted member:', mId, mName);
+        return;
+      }
+
+      if (mId && membersRef.current.length > 0 && !membersRef.current.some((m) => m.id === mId)) {
+        console.warn('Blocked incoming alert: member is not registered in club:', mId);
+        return;
+      }
+
+      if (isLegacyMockMember({ id: mId, name: alertData.memberName })) return;
+
+      setAlerts((prev) => {
+        if (prev.some((a) => a.id === alertData.id)) return prev;
+        return [alertData, ...prev];
+      });
+    });
+
+    // Alert Real-Time Events
+    socket.on('alert:deleted', ({ alertId }) => {
+      setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+    });
+
+    socket.on('alert:resolved', ({ alertId }) => {
+      setAlerts((prev) =>
+        prev.map((a) => (a.id === alertId ? { ...a, resolved: 1 } : a))
+      );
+    });
+
+    socket.on('alert:bulk_deleted', () => {
+      setAlerts((prev) => prev.filter((a) => a.resolved === 0 || a.resolved === false));
     });
 
     // Simulator status event
@@ -190,10 +400,86 @@ export default function App() {
 
   // Resolve Alert
   const handleResolveAlert = async (alertId) => {
-    await api.resolveAlert(alertId);
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === alertId ? { ...a, resolved: 1 } : a))
-    );
+    try {
+      await api.resolveAlert(alertId);
+      setAlerts((prev) =>
+        prev.map((a) => (a.id === alertId ? { ...a, resolved: 1 } : a))
+      );
+    } catch (err) {
+      console.error('Failed to resolve alert:', err);
+    }
+  };
+
+  // Delete Alert
+  const handleDeleteAlert = async (alertId) => {
+    // 1. Immediately persist locally so refreshing NEVER brings it back
+    persistDismissedAlertId(alertId);
+    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+
+    // 2. Also send delete request to backend
+    try {
+      await api.deleteAlert(alertId);
+    } catch (err) {
+      console.warn('Backend delete sync note (server pending update):', err.message);
+    }
+  };
+
+  // Bulk Clear Resolved Alerts
+  const handleClearResolvedAlerts = async () => {
+    if (!window.confirm('Are you sure you want to delete all resolved alerts from history?')) return;
+    const resolvedIds = alerts
+      .filter((a) => a.resolved === 1 || a.resolved === true)
+      .map((a) => a.id);
+
+    // 1. Immediately persist locally so refreshing NEVER brings them back
+    persistDismissedAlertIds(resolvedIds);
+    setAlerts((prev) => prev.filter((a) => a.resolved === 0 || a.resolved === false));
+
+    // 2. Also send bulk clear to backend
+    try {
+      await api.clearResolvedAlerts();
+    } catch (err) {
+      console.warn('Backend bulk delete sync note (server pending update):', err.message);
+    }
+  };
+
+  // Delete Member
+  const handleDeleteMember = async (memberId) => {
+    if (!window.confirm('Are you sure you want to remove this member from the club?')) return;
+    const memberToDelete = members.find((m) => m.id === memberId);
+
+    // 1. Immediately persist locally so refreshing NEVER brings them back
+    persistDismissedMemberId(memberId);
+    if (memberToDelete?.name) {
+      persistDismissedMemberName(memberToDelete.name);
+    }
+    setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    if (selectedMemberId === memberId) setSelectedMemberId(null);
+
+    // Also immediately purge and dismiss any alerts associated with this deleted member
+    const targetName = (memberToDelete?.name || '').toLowerCase().trim();
+    const relatedAlertIds = alerts
+      .filter((a) => {
+        const mId = a.member_id || a.memberId;
+        const aName = (a.member_name || a.memberName || '').toLowerCase().trim();
+        const aMsg = (a.message || '').toLowerCase();
+        return (mId && mId === memberId) ||
+               (targetName && aName === targetName) ||
+               (targetName && aMsg.includes(targetName));
+      })
+      .map((a) => a.id);
+
+    if (relatedAlertIds.length > 0) {
+      persistDismissedAlertIds(relatedAlertIds);
+    }
+    setAlerts((prev) => prev.filter((a) => !relatedAlertIds.includes(a.id)));
+
+    // 2. Also send DELETE to backend
+    try {
+      await api.deleteMember(memberId);
+    } catch (err) {
+      console.warn('Backend delete member note (server pending redeploy):', err.message);
+    }
   };
 
   // Calculated Stats
@@ -217,10 +503,10 @@ export default function App() {
               total: members.length,
               activeSharing: activeSharingCount,
             }}
-            simulatorActive={simulatorActive}
-            onToggleSimulator={handleToggleSimulator}
+            isConnected={isSocketConnected}
+            onOpenServerSettings={() => setIsServerSettingsOpen(true)}
             onOpenGeofences={() => setIsGeofenceModalOpen(true)}
-            onOpenAlerts={() => {}}
+            onOpenAlerts={() => setIsAlertsModalOpen(true)}
             unresolvedAlertCount={unresolvedAlertCount}
             onLogout={handleLogout}
           />
@@ -245,6 +531,7 @@ export default function App() {
               onSelectMember={setSelectedMemberId}
               onLoadHistory={handleLoadHistory}
               loadingHistory={loadingHistoryId}
+              onDeleteMember={handleDeleteMember}
             />
 
             {/* Emergency & Geofence Alert Banner */}
@@ -270,6 +557,152 @@ export default function App() {
             onCreateGeofence={handleCreateGeofence}
             onDeleteGeofence={handleDeleteGeofence}
           />
+
+          {/* Alerts & Notifications Modal */}
+          <AlertsModal
+            isOpen={isAlertsModalOpen}
+            onClose={() => setIsAlertsModalOpen(false)}
+            alerts={alerts}
+            onFocusMember={setSelectedMemberId}
+            onResolveAlert={handleResolveAlert}
+            onDeleteAlert={handleDeleteAlert}
+            onClearResolved={handleClearResolvedAlerts}
+          />
+
+          {/* Server Gateway Settings Modal */}
+          {isServerSettingsOpen && (
+            <div
+              onClick={() => setIsServerSettingsOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                backdropFilter: 'blur(4px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #1e293b',
+                  borderRadius: '16px',
+                  width: '460px',
+                  maxWidth: '92%',
+                  padding: '24px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                  position: 'relative'
+                }}
+              >
+                <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'white', marginBottom: '8px' }}>
+                  Backend Gateway Settings
+                </h3>
+                <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
+                  Configure which backend server the admin dashboard communicates with:
+                </p>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <input
+                    type="text"
+                    value={customServerUrl}
+                    onChange={(e) => setCustomServerUrl(e.target.value)}
+                    placeholder="https://aws-cloud-tracker.onrender.com"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCustomServerUrl('https://aws-cloud-tracker.onrender.com')}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #3b82f6',
+                      borderRadius: '6px',
+                      color: '#93c5fd',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ☁️ Live Render Cloud
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCustomServerUrl('http://localhost:5000')}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      color: '#cbd5e1',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    💻 Localhost:5000
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsServerSettingsOpen(false)}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      color: '#94a3b8',
+                      fontSize: '13px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanUrl = customServerUrl.trim();
+                      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                        alert('URL must start with http:// or https://');
+                        return;
+                      }
+                      setBackendServerUrl(cleanUrl);
+                      setIsServerSettingsOpen(false);
+                      window.location.reload();
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#2563eb',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontWeight: '700',
+                      fontSize: '13px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Save & Reconnect
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

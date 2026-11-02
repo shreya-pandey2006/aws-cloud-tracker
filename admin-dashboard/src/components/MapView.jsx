@@ -11,6 +11,7 @@ import {
   Phone,
   Route
 } from 'lucide-react';
+import { formatTimeIst } from '../utils/time';
 
 export default function MapView({
   members,
@@ -134,10 +135,8 @@ export default function MapView({
         popupAnchor: [0, -24]
       });
 
-      // Format updated timestamp
-      const updatedText = member.last_seen_at
-        ? new Date(member.last_seen_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        : 'Recently';
+      // Format updated timestamp in IST
+      const updatedText = formatTimeIst(member.last_seen_at, { includeSeconds: true });
 
       const popupHtml = `
         <div style="padding: 14px; min-width: 220px; font-family: sans-serif;">
@@ -197,7 +196,7 @@ export default function MapView({
             font-weight: 600;
             cursor: pointer;
           ">
-            View Breadcrumbs Trail
+            View Travel Route
           </button>
         </div>
       `;
@@ -366,7 +365,7 @@ export default function MapView({
         position: 'absolute',
         top: '16px',
         left: '16px',
-        zIndex: 20,
+        zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
         gap: '8px'
@@ -455,7 +454,7 @@ export default function MapView({
               boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
             }}
           >
-            Clear Trail
+            Clear Route
           </button>
         )}
       </div>
@@ -465,7 +464,7 @@ export default function MapView({
         position: 'absolute',
         bottom: '24px',
         left: '16px',
-        zIndex: 20,
+        zIndex: 1000,
         backgroundColor: 'rgba(15, 23, 42, 0.92)',
         backdropFilter: 'blur(8px)',
         border: '1px solid #334155',

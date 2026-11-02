@@ -9,6 +9,7 @@ import '../services/location_service.dart';
 import '../services/socket_service.dart';
 import '../services/storage_service.dart';
 import 'profile_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final MemberModel member;
@@ -56,6 +57,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  Future<void> _handleRevokedMembership([String? message]) async {
+    await StorageService.clearAuth();
+    LocationService.stopTracking();
+    SocketService.disconnect();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message ?? 'You cannot send the SOS as you are no longer a member of this club.',
+          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFFEF4444),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   Future<void> _initSocketAndLocation() async {
     // 1. Connect to WebSockets
     await SocketService.connect(
@@ -64,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       onConnected: () {
         if (mounted) setState(() {});
       },
+      onRevoked: (msg) => _handleRevokedMembership(msg),
     );
 
     // 2. Initial position
@@ -216,31 +240,65 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final lat = pos?.latitude ?? 28.6757;
     final lng = pos?.longitude ?? 77.5020;
 
-    SocketService.triggerSos(
-      memberId: _member.id,
-      clubId: _member.clubId,
-      latitude: lat,
-      longitude: lng,
-      message: 'EMERGENCY SOS: Member ${_member.name} pressed panic distress button!',
-    );
+    final sosMsg = 'EMERGENCY SOS: Member ${_member.name} pressed panic distress button!';
 
-    await ApiService.sendSos(
-      memberId: _member.id,
-      latitude: lat,
-      longitude: lng,
-    );
-
-    if (mounted) {
-      setState(() {
-        _isSosLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🚨 SOS DISTRESS TRANSMITTED TO CLUB ADMIN!'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 5),
-        ),
+    try {
+      // 1. Send via REST endpoint first to verify membership against backend database
+      await ApiService.sendSos(
+        memberId: _member.id,
+        latitude: lat,
+        longitude: lng,
+        message: sosMsg,
       );
+
+      // 2. If valid member, also broadcast via WebSockets for zero-latency dashboard dispatch
+      if (SocketService.isConnected) {
+        SocketService.triggerSos(
+          memberId: _member.id,
+          clubId: _member.clubId,
+          latitude: lat,
+          longitude: lng,
+          message: sosMsg,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _isSosLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🚨 SOS DISTRESS TRANSMITTED TO CLUB ADMIN!'),
+            backgroundColor: Color(0xFFEF4444),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSosLoading = false;
+        });
+      }
+      final errStr = e.toString().replaceAll('Exception:', '').trim();
+      final isRevoked = errStr.toLowerCase().contains('no longer a member') ||
+                        errStr.toLowerCase().contains('not found') ||
+                        errStr.contains('404') ||
+                        errStr.toLowerCase().contains('revoked');
+
+      if (isRevoked) {
+        await _handleRevokedMembership('You cannot send the SOS as you are no longer a member of this club.');
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ $errStr'),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -256,13 +314,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F172A),
         elevation: 0,
+        toolbarHeight: 68,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              _member.clubName,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+            const Text(
+              'AWS Cloud Clubs',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -0.3,
+              ),
             ),
+            const SizedBox(height: 1),
+            const Text(
+              'Ajay Kumar Garg Engineering College',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+            const SizedBox(height: 3),
             Row(
               children: [
                 Container(
@@ -276,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 const SizedBox(width: 6),
                 Text(
                   SocketService.isConnected ? 'Connected to HQ Gateway' : 'Connecting...',
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
                 ),
               ],
             ),

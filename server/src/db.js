@@ -95,10 +95,9 @@ function seedInitialData() {
   const clubCount = db.prepare('SELECT COUNT(*) as count FROM clubs').get().count;
   if (clubCount > 0) return;
 
-  console.log('🌱 Seeding initial AWS Cloud Clubs of Ajay Kumar Garg Engineering College data...');
+  console.log('🌱 Initializing AWS Cloud Clubs of Ajay Kumar Garg Engineering College...');
   const salt = bcrypt.genSaltSync(10);
   const adminPassHash = bcrypt.hashSync('admin123', salt);
-  const memberPassHash = bcrypt.hashSync('member123', salt);
 
   const clubId = 'club_akgec_aws_01';
   db.prepare(`
@@ -113,125 +112,7 @@ function seedInitialData() {
     adminPassHash
   );
 
-  // Real AKGEC Campus Coordinates (Ghaziabad, UP, India): 28.6757, 77.5020
-  const initialMembers = [
-    {
-      id: 'mem_alex',
-      name: 'Alex Rivera',
-      email: 'alex@akgec.awscloudclubs.com',
-      phone: '+91 98765 43210',
-      emergency_contact: 'Prof. Sharma (Faculty Advisor): +91 98111 22233',
-      role: 'Club Captain & Cloud Lead',
-      lat: 28.6762,
-      lng: 77.5025,
-      speed: 4.8,
-      heading: 45,
-      battery: 92,
-      isSharing: 1,
-      status: 'active'
-    },
-    {
-      id: 'mem_jordan',
-      name: 'Jordan Lee',
-      email: 'jordan@akgec.awscloudclubs.com',
-      phone: '+91 98765 43211',
-      emergency_contact: 'Dr. Verma (HOD CS): +91 98222 33344',
-      role: 'Technical Secretary (CS Dept)',
-      lat: 28.6750,
-      lng: 77.5015,
-      speed: 12.5,
-      heading: 120,
-      battery: 78,
-      isSharing: 1,
-      status: 'active'
-    },
-    {
-      id: 'mem_sam',
-      name: 'Sam Patel',
-      email: 'sam@akgec.awscloudclubs.com',
-      phone: '+91 98765 43212',
-      emergency_contact: 'AKGEC Security Desk: +91 120 2762841',
-      role: 'Cloud Architect Lead (IT Dept)',
-      lat: 28.6770,
-      lng: 77.5035,
-      speed: 0.0,
-      heading: 0,
-      battery: 64,
-      isSharing: 0,
-      status: 'paused'
-    },
-    {
-      id: 'mem_taylor',
-      name: 'Taylor Smith',
-      email: 'taylor@akgec.awscloudclubs.com',
-      phone: '+91 98765 43213',
-      emergency_contact: 'Hostel Warden: +91 98333 44455',
-      role: 'Hackathon Head (ECE Dept)',
-      lat: 28.6745,
-      lng: 77.5005,
-      speed: 18.2,
-      heading: 270,
-      battery: 45,
-      isSharing: 1,
-      status: 'active'
-    }
-  ];
-
-  const insertMember = db.prepare(`
-    INSERT INTO members (
-      id, club_id, name, email, phone, emergency_contact, password_hash,
-      role, status, is_sharing_location, last_latitude, last_longitude,
-      last_accuracy, last_speed, last_heading, last_altitude, last_battery, last_seen_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `);
-
-  const insertHistory = db.prepare(`
-    INSERT INTO location_history (
-      member_id, latitude, longitude, accuracy, speed, heading, altitude, battery, timestamp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?))
-  `);
-
-  for (const m of initialMembers) {
-    insertMember.run(
-      m.id,
-      clubId,
-      m.name,
-      m.email,
-      m.phone,
-      m.emergency_contact,
-      memberPassHash,
-      m.role,
-      m.status,
-      m.isSharing,
-      m.lat,
-      m.lng,
-      4.5,
-      m.speed,
-      m.heading,
-      210.0, // AKGEC campus altitude (~210m above sea level)
-      m.battery
-    );
-
-    // Seed initial campus breadcrumbs
-    for (let i = 6; i >= 0; i--) {
-      const timeOffset = `-${i * 5} minutes`;
-      const latOffset = (6 - i) * 0.0003;
-      const lngOffset = (6 - i) * 0.0004;
-      insertHistory.run(
-        m.id,
-        m.lat - latOffset,
-        m.lng - lngOffset,
-        4.0,
-        m.speed,
-        m.heading,
-        210 + i,
-        m.battery + i,
-        timeOffset
-      );
-    }
-  }
-
-  // Insert AKGEC Campus Geofences
+  // Insert Campus Geofences
   const insertGeofence = db.prepare(`
     INSERT INTO geofences (id, club_id, name, latitude, longitude, radius_meters)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -241,22 +122,7 @@ function seedInitialData() {
   insertGeofence.run('geo_akgec_sports', clubId, 'AKGEC Sports Complex & Rally Ground', 28.6778, 77.5042, 250);
   insertGeofence.run('geo_akgec_gate', clubId, 'AKGEC Main Gate Checkpoint', 28.6738, 77.5010, 180);
 
-  // Insert sample alert
-  db.prepare(`
-    INSERT INTO alerts (id, club_id, member_id, type, severity, message, latitude, longitude, resolved)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
-  `).run(
-    'alert_init_01',
-    clubId,
-    'mem_jordan',
-    'geofence_enter',
-    'info',
-    'Jordan Lee entered AKGEC Innovation Hub & Central Audi perimeter',
-    28.6750,
-    77.5015
-  );
-
-  console.log('✅ AWS Cloud Clubs of Ajay Kumar Garg Engineering College data seeded successfully!');
+  console.log('✅ Clean setup complete: Zero hardcoded members. Real members register via the app.');
 }
 
 initDatabase();
