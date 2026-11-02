@@ -1,6 +1,6 @@
 {
-    "name": "member_app",
-    "short_name": "member_app",
+    "name": "AWS Tracker",
+    "short_name": "AWS Tracker",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
