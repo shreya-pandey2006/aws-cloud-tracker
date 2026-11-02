@@ -93,18 +93,18 @@ export default function MapView({
           cursor: pointer;
         ">
           <span style="font-size: 14px;">🏛️</span>
-          <span>AKGEC Campus HQ</span>
+          <span>AKGEC Campus</span>
         </div>
       `,
-      iconSize: [145, 30],
-      iconAnchor: [72, 15]
+      iconSize: [125, 30],
+      iconAnchor: [62, 15]
     });
 
     const campusMarker = L.marker([28.6757, 77.5020], { icon: campusIcon }).addTo(map);
     campusMarker.bindPopup(`
       <div style="font-family: sans-serif; padding: 6px 10px; min-width: 200px;">
         <div style="font-weight: 700; font-size: 13px; color: #38bdf8; margin-bottom: 3px;">🏛️ Ajay Kumar Garg Engineering College</div>
-        <div style="font-size: 11px; color: #94a3b8;">AWS Cloud Clubs — Basecamp Headquarters</div>
+        <div style="font-size: 11px; color: #94a3b8;">AWS Cloud Clubs — Basecamp</div>
         <div style="font-size: 10px; color: #64748b; margin-top: 4px;">28.6757° N, 77.5020° E</div>
       </div>
     `);

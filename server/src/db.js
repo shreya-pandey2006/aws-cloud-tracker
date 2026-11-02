@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const dbPath = path.join(__dirname, '..', 'tracker.db');
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'tracker.db');
 const db = new Database(dbPath);
 
 // Enable WAL mode for high performance concurrency
