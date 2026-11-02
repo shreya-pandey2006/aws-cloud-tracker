@@ -7,7 +7,7 @@ import AlertsModal from './components/AlertsModal';
 import HistoryReplayBar from './components/HistoryReplayBar';
 import LoginModal from './components/LoginModal';
 
-import { api, getAuthToken, setAuthToken, getAdminUser, setAdminUser, getBackendServerUrl, setBackendServerUrl } from './services/api';
+import { api, getAuthToken, setAuthToken, getAdminUser, setAdminUser } from './services/api';
 import { initSocket, disconnectSocket, getSocket } from './services/socket';
 import { playEmergencyAlertSound } from './utils/audio';
 
@@ -104,8 +104,6 @@ export default function App() {
   const [selectedMemberId, setSelectedMemberId] = useState(null);
   const [simulatorActive, setSimulatorActive] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
-  const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
-  const [customServerUrl, setCustomServerUrl] = useState(getBackendServerUrl());
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [historyTrail, setHistoryTrail] = useState(null);
   const [historyMember, setHistoryMember] = useState(null);
@@ -479,7 +477,6 @@ export default function App() {
               activeSharing: activeSharingCount,
             }}
             isConnected={isSocketConnected}
-            onOpenServerSettings={() => setIsServerSettingsOpen(true)}
             onOpenAlerts={() => setIsAlertsModalOpen(true)}
             unresolvedAlertCount={unresolvedAlertCount}
             onLogout={handleLogout}
@@ -532,141 +529,6 @@ export default function App() {
             onDeleteAlert={handleDeleteAlert}
             onClearResolved={handleClearResolvedAlerts}
           />
-
-          {/* Server Gateway Settings Modal */}
-          {isServerSettingsOpen && (
-            <div
-              onClick={() => setIsServerSettingsOpen(false)}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(4px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 9999
-              }}
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  backgroundColor: '#0f172a',
-                  border: '1px solid #1e293b',
-                  borderRadius: '16px',
-                  width: '460px',
-                  maxWidth: '92%',
-                  padding: '24px',
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                  position: 'relative'
-                }}
-              >
-                <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'white', marginBottom: '8px' }}>
-                  Backend Gateway Settings
-                </h3>
-                <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
-                  Configure which backend server the admin dashboard communicates with:
-                </p>
-
-                <div style={{ marginBottom: '14px' }}>
-                  <input
-                    type="text"
-                    value={customServerUrl}
-                    onChange={(e) => setCustomServerUrl(e.target.value)}
-                    placeholder="https://aws-cloud-tracker.onrender.com"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setCustomServerUrl('https://aws-cloud-tracker.onrender.com')}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #3b82f6',
-                      borderRadius: '6px',
-                      color: '#93c5fd',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ☁️ Live Render Cloud
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCustomServerUrl('http://localhost:5000')}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      borderRadius: '6px',
-                      color: '#cbd5e1',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    💻 Localhost:5000
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsServerSettingsOpen(false)}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: 'transparent',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      color: '#94a3b8',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cleanUrl = customServerUrl.trim();
-                      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-                        alert('URL must start with http:// or https://');
-                        return;
-                      }
-                      setBackendServerUrl(cleanUrl);
-                      setIsServerSettingsOpen(false);
-                      window.location.reload();
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: '#2563eb',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontWeight: '700',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Save & Reconnect
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

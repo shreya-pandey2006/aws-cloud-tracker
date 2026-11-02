@@ -5,17 +5,14 @@ import {
   Users,
   ShieldAlert,
   Bell,
-  LogOut,
-  Settings
+  LogOut
 } from 'lucide-react';
-import { getBackendServerUrl } from '../services/api';
 
 export default function Navbar({
   club,
   admin,
   stats,
   isConnected,
-  onOpenServerSettings,
   onOpenAlerts,
   unresolvedAlertCount,
   onLogout
@@ -52,8 +49,6 @@ export default function Navbar({
               AWS Cloud Clubs
             </h1>
             <span
-              onClick={onOpenServerSettings}
-              title={`Gateway: ${getBackendServerUrl()} (Click to change)`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -65,7 +60,7 @@ export default function Navbar({
                 fontSize: '11px',
                 fontWeight: '600',
                 color: isConnected ? '#34d399' : '#f87171',
-                cursor: 'pointer'
+                userSelect: 'none'
               }}
             >
               <span style={{
@@ -180,27 +175,6 @@ export default function Navbar({
               {unresolvedAlertCount}
             </span>
           )}
-        </button>
-
-        {/* Server Gateway Settings */}
-        <button
-          onClick={onOpenServerSettings}
-          title={`Backend Gateway: ${getBackendServerUrl()}`}
-          style={{
-            position: 'relative',
-            width: '36px',
-            height: '36px',
-            borderRadius: '8px',
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: '#94a3b8'
-          }}
-        >
-          <Settings size={17} />
         </button>
 
         {/* Divider */}
