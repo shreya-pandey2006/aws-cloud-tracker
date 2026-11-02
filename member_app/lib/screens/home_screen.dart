@@ -243,8 +243,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final sosMsg = 'EMERGENCY SOS: Member ${_member.name} pressed panic distress button!';
 
     try {
-      // Send single verified SOS request via REST API
-      // (Backend validates membership, inserts 1 alert, and broadcasts it to Admin Dashboard)
+      // 1. Send via WebSocket if connected for instantaneous dashboard dispatch
+      if (SocketService.isConnected) {
+        SocketService.triggerSos(
+          memberId: _member.id,
+          clubId: _member.clubId,
+          latitude: lat,
+          longitude: lng,
+          message: sosMsg,
+        );
+      }
+
+      // 2. Also record via REST API (validates membership in database)
       await ApiService.sendSos(
         memberId: _member.id,
         latitude: lat,

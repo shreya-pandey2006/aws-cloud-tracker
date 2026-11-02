@@ -24,6 +24,11 @@ const isLegacyMockMember = (m) => {
 
 const DISMISSED_ALERTS_KEY = 'club_dismissed_alert_ids';
 
+// Wipe any legacy name-based suppression from localStorage
+try {
+  localStorage.removeItem('club_dismissed_member_names');
+} catch {}
+
 function getDismissedAlertIds() {
   try {
     return JSON.parse(localStorage.getItem(DISMISSED_ALERTS_KEY) || '[]');
@@ -55,19 +60,10 @@ function persistDismissedAlertIds(alertIds) {
 }
 
 const DISMISSED_MEMBERS_KEY = 'club_dismissed_member_ids';
-const DISMISSED_MEMBER_NAMES_KEY = 'club_dismissed_member_names';
 
 function getDismissedMemberIds() {
   try {
     return JSON.parse(localStorage.getItem(DISMISSED_MEMBERS_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function getDismissedMemberNames() {
-  try {
-    return JSON.parse(localStorage.getItem(DISMISSED_MEMBER_NAMES_KEY) || '[]');
   } catch {
     return [];
   }
@@ -86,18 +82,13 @@ function persistDismissedMemberId(memberId) {
   }
 }
 
-function persistDismissedMemberName(name) {
+function unpersistDismissedMemberId(memberId) {
   try {
-    if (!name) return;
-    const clean = String(name).toLowerCase().trim();
-    if (!clean) return;
-    const list = getDismissedMemberNames();
-    if (!list.includes(clean)) {
-      list.push(clean);
-      localStorage.setItem(DISMISSED_MEMBER_NAMES_KEY, JSON.stringify(list.slice(-500)));
-    }
+    if (!memberId) return;
+    const list = getDismissedMemberIds().filter((id) => id !== memberId);
+    localStorage.setItem(DISMISSED_MEMBERS_KEY, JSON.stringify(list));
   } catch (err) {
-    console.error('Failed to save dismissed member name to localStorage', err);
+    console.error('Failed to un-dismiss member from localStorage', err);
   }
 }
 
@@ -139,21 +130,16 @@ export default function App() {
         .filter((m) => !dismissedMemberIds.has(m.id));
 
       const rawAlerts = alertsRes.alerts || [];
-      const dismissedIds = new Set(getDismissedAlertIds());
-      const dismissedMemberNames = new Set(getDismissedMemberNames());
+      const dismissedAlertIds = new Set(getDismissedAlertIds());
       const activeMemberIds = new Set(cleanMembers.map((m) => m.id));
 
       const cleanAlerts = rawAlerts
         .filter((a) => !isLegacyMockMember({ id: a.member_id, name: a.member_name }))
-        .filter((a) => !dismissedIds.has(a.id))
+        .filter((a) => !dismissedAlertIds.has(a.id))
         .filter((a) => {
           const mId = a.member_id || a.memberId;
-          const aName = (a.member_name || a.memberName || '').toLowerCase().trim();
-          const aMsg = (a.message || '').toLowerCase();
-          if (mId && dismissedMemberIds.has(mId)) return false;
-          if (aName && dismissedMemberNames.has(aName)) return false;
-          if (Array.from(dismissedMemberNames).some((n) => aMsg.includes(n))) return false;
-          if (mId && !activeMemberIds.has(mId)) return false;
+          // Drop alert only if member is explicitly known to be deleted / not active
+          if (mId && dismissedMemberIds.has(mId) && !activeMemberIds.has(mId)) return false;
           return true;
         });
 
@@ -247,6 +233,7 @@ export default function App() {
     // Real-time new member registration
     socket.on('member:joined', (newMember) => {
       if (isLegacyMockMember(newMember)) return;
+      unpersistDismissedMemberId(newMember.id);
       setMembers((prev) => {
         if (prev.some((m) => m.id === newMember.id)) return prev;
         return [newMember, ...prev];
@@ -263,24 +250,17 @@ export default function App() {
     // SOS Emergency Alert
     socket.on('alert:sos', (alertData) => {
       const mId = alertData.memberId || alertData.member_id;
-      const mName = (alertData.memberName || alertData.member_name || '').toLowerCase().trim();
-      const aMsg = (alertData.message || '').toLowerCase();
+      const dismissedAlertIds = new Set(getDismissedAlertIds());
       const dismissedMemberIds = new Set(getDismissedMemberIds());
-      const dismissedMemberNames = new Set(getDismissedMemberNames());
 
-      if ((mId && dismissedMemberIds.has(mId)) ||
-          (mName && dismissedMemberNames.has(mName)) ||
-          Array.from(dismissedMemberNames).some((n) => aMsg.includes(n))) {
-        console.warn('Blocked incoming SOS from deleted member:', mId, mName);
-        return;
-      }
-
-      if (mId && membersRef.current.length > 0 && !membersRef.current.some((m) => m.id === mId)) {
-        console.warn('Blocked incoming SOS: member is not registered in club:', mId);
-        return;
-      }
-
+      if (dismissedAlertIds.has(alertData.id)) return;
       if (isLegacyMockMember({ id: mId, name: alertData.memberName })) return;
+
+      // Drop only if member was deleted and is NOT in current active members list
+      if (mId && dismissedMemberIds.has(mId) && !membersRef.current.some((m) => m.id === mId)) {
+        console.warn('Blocked incoming SOS from deleted member ID:', mId);
+        return;
+      }
 
       playEmergencyAlertSound();
       setAlerts((prev) => {
@@ -318,24 +298,16 @@ export default function App() {
     // General Alert (Geofence, etc.)
     socket.on('alert:new', (alertData) => {
       const mId = alertData.memberId || alertData.member_id;
-      const mName = (alertData.memberName || alertData.member_name || '').toLowerCase().trim();
-      const aMsg = (alertData.message || '').toLowerCase();
+      const dismissedAlertIds = new Set(getDismissedAlertIds());
       const dismissedMemberIds = new Set(getDismissedMemberIds());
-      const dismissedMemberNames = new Set(getDismissedMemberNames());
 
-      if ((mId && dismissedMemberIds.has(mId)) ||
-          (mName && dismissedMemberNames.has(mName)) ||
-          Array.from(dismissedMemberNames).some((n) => aMsg.includes(n))) {
-        console.warn('Blocked incoming alert from deleted member:', mId, mName);
-        return;
-      }
-
-      if (mId && membersRef.current.length > 0 && !membersRef.current.some((m) => m.id === mId)) {
-        console.warn('Blocked incoming alert: member is not registered in club:', mId);
-        return;
-      }
-
+      if (dismissedAlertIds.has(alertData.id)) return;
       if (isLegacyMockMember({ id: mId, name: alertData.memberName })) return;
+
+      if (mId && dismissedMemberIds.has(mId) && !membersRef.current.some((m) => m.id === mId)) {
+        console.warn('Blocked incoming alert from deleted member ID:', mId);
+        return;
+      }
 
       setAlerts((prev) => {
         if (prev.some((a) => a.id === alertData.id)) return prev;
@@ -477,33 +449,21 @@ export default function App() {
   // Delete Member
   const handleDeleteMember = async (memberId) => {
     if (!window.confirm('Are you sure you want to remove this member from the club?')) return;
-    const memberToDelete = members.find((m) => m.id === memberId);
 
     // 1. Immediately persist locally so refreshing NEVER brings them back
     persistDismissedMemberId(memberId);
-    if (memberToDelete?.name) {
-      persistDismissedMemberName(memberToDelete.name);
-    }
     setMembers((prev) => prev.filter((m) => m.id !== memberId));
     if (selectedMemberId === memberId) setSelectedMemberId(null);
 
-    // Also immediately purge and dismiss any alerts associated with this deleted member
-    const targetName = (memberToDelete?.name || '').toLowerCase().trim();
+    // Also purge and dismiss alerts associated with this deleted member ID
     const relatedAlertIds = alerts
-      .filter((a) => {
-        const mId = a.member_id || a.memberId;
-        const aName = (a.member_name || a.memberName || '').toLowerCase().trim();
-        const aMsg = (a.message || '').toLowerCase();
-        return (mId && mId === memberId) ||
-               (targetName && aName === targetName) ||
-               (targetName && aMsg.includes(targetName));
-      })
+      .filter((a) => (a.member_id || a.memberId) === memberId)
       .map((a) => a.id);
 
     if (relatedAlertIds.length > 0) {
       persistDismissedAlertIds(relatedAlertIds);
     }
-    setAlerts((prev) => prev.filter((a) => !relatedAlertIds.includes(a.id)));
+    setAlerts((prev) => prev.filter((a) => (a.member_id || a.memberId) !== memberId));
 
     // 2. Also send DELETE to backend
     try {
