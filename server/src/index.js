@@ -8,7 +8,6 @@ require('dotenv').config();
 const db = require('./db');
 const authRoutes = require('./routes/authRoutes');
 const memberRoutes = require('./routes/memberRoutes');
-const geofenceRoutes = require('./routes/geofenceRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const MemberMovementSimulator = require('./simulator');
 const setupSocketIO = require('./sockets');
@@ -58,7 +57,7 @@ setupSocketIO(io, simulator);
 // REST API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
-app.use('/api/geofences', geofenceRoutes);
+app.get('/api/geofences', (req, res) => res.json({ geofences: [] }));
 app.use('/api/alerts', alertRoutes);
 
 // Mobile Web Member App route

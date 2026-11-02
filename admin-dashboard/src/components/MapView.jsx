@@ -15,7 +15,6 @@ import { formatTimeIst } from '../utils/time';
 
 export default function MapView({
   members,
-  geofences,
   selectedMemberId,
   onSelectMember,
   historyTrail,
@@ -25,7 +24,6 @@ export default function MapView({
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef({});
-  const geofenceLayersRef = useRef([]);
   const historyPolylineRef = useRef(null);
   const historyMarkersRef = useRef([]);
   const [mapStyle, setMapStyle] = React.useState('dark'); // 'dark' | 'streets' | 'satellite'
@@ -324,36 +322,6 @@ export default function MapView({
     }
   }, [selectedMemberId, members]);
 
-  // Render Geofence zones
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    // Clear previous geofence layers
-    geofenceLayersRef.current.forEach(layer => map.removeLayer(layer));
-    geofenceLayersRef.current = [];
-
-    geofences.forEach(gf => {
-      const circle = L.circle([gf.latitude, gf.longitude], {
-        radius: gf.radius_meters,
-        color: '#06b6d4',
-        weight: 1.5,
-        fillColor: '#06b6d4',
-        fillOpacity: 0.12,
-        dashArray: '4, 8'
-      });
-
-      circle.bindTooltip(`📍 Zone: ${gf.name} (${Math.round(gf.radius_meters)}m)`, {
-        permanent: false,
-        direction: 'top',
-        className: 'geofence-tooltip'
-      });
-
-      circle.addTo(map);
-      geofenceLayersRef.current.push(circle);
-    });
-  }, [geofences]);
-
   // Render History Breadcrumbs Trail
   useEffect(() => {
     const map = mapRef.current;
@@ -567,10 +535,6 @@ export default function MapView({
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
           SOS Alert
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '12px', height: '4px', backgroundColor: '#06b6d4', borderRadius: '2px' }} />
-          Geofence
         </div>
       </div>
     </div>

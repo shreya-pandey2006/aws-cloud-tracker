@@ -4,7 +4,6 @@ import {
   Radio,
   Users,
   ShieldAlert,
-  MapPin,
   Bell,
   LogOut,
   Settings
@@ -17,7 +16,6 @@ export default function Navbar({
   stats,
   isConnected,
   onOpenServerSettings,
-  onOpenGeofences,
   onOpenAlerts,
   unresolvedAlertCount,
   onLogout
@@ -148,27 +146,6 @@ export default function Navbar({
 
       {/* Actions & Admin Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Geofences Button */}
-        <button
-          onClick={onOpenGeofences}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '7px 12px',
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '8px',
-            color: '#cbd5e1',
-            fontSize: '12px',
-            fontWeight: '500',
-            cursor: 'pointer'
-          }}
-        >
-          <MapPin size={15} color="#38bdf8" />
-          Geofences
-        </button>
-
         {/* Alerts Bell */}
         <button
           onClick={onOpenAlerts}

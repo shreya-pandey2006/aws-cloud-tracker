@@ -86,6 +86,9 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_history_member_time ON location_history(member_id, timestamp);
     CREATE INDEX IF NOT EXISTS idx_members_club ON members(club_id);
     CREATE INDEX IF NOT EXISTS idx_alerts_club ON alerts(club_id);
+
+    DELETE FROM geofences;
+    DELETE FROM alerts WHERE type = 'geofence_enter';
   `);
 
   seedInitialData();
@@ -111,16 +114,6 @@ function seedInitialData() {
     'admin@akgec.awscloudclubs.com',
     adminPassHash
   );
-
-  // Insert Campus Geofences
-  const insertGeofence = db.prepare(`
-    INSERT INTO geofences (id, club_id, name, latitude, longitude, radius_meters)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  insertGeofence.run('geo_akgec_hub', clubId, 'AKGEC Innovation Hub & Central Audi', 28.6757, 77.5020, 350);
-  insertGeofence.run('geo_akgec_sports', clubId, 'AKGEC Sports Complex & Rally Ground', 28.6778, 77.5042, 250);
-  insertGeofence.run('geo_akgec_gate', clubId, 'AKGEC Main Gate Checkpoint', 28.6738, 77.5010, 180);
 
   console.log('✅ Clean setup complete: Zero hardcoded members. Real members register via the app.');
 }

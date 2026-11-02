@@ -132,43 +132,6 @@ function setupSocketIO(io, simulator) {
           isSharing: true,
           lastSeenAt: new Date().toISOString()
         });
-
-        // 4. Check Geofence perimeters
-        const geofences = db.prepare('SELECT * FROM geofences WHERE club_id = ?').all(clubId);
-        for (const gf of geofences) {
-          const dist = getDistanceMeters(latitude, longitude, gf.latitude, gf.longitude);
-          if (dist <= gf.radius_meters) {
-            // Check if alert was already raised in the last 15 minutes
-            const recentAlert = db.prepare(`
-              SELECT id FROM alerts
-              WHERE member_id = ? AND type = 'geofence_enter' AND message LIKE ?
-                AND created_at >= datetime('now', '-15 minutes')
-            `).get(memberId, `%${gf.name}%`);
-
-            if (!recentAlert) {
-              const alertId = 'gf_' + Date.now().toString(36);
-              const msg = `${member.name} entered zone "${gf.name}" (${Math.round(dist)}m from center)`;
-              db.prepare(`
-                INSERT INTO alerts (id, club_id, member_id, type, severity, message, latitude, longitude, resolved)
-                VALUES (?, ?, ?, 'geofence_enter', 'info', ?, ?, ?, 0)
-              `).run(alertId, clubId, memberId, msg, latitude, longitude);
-
-              io.to(room).emit('alert:new', {
-                id: alertId,
-                clubId,
-                memberId,
-                memberName: member.name,
-                type: 'geofence_enter',
-                severity: 'info',
-                message: msg,
-                latitude,
-                longitude,
-                createdAt: new Date().toISOString(),
-                created_at: new Date().toISOString()
-              });
-            }
-          }
-        }
       } catch (err) {
         console.error('Error handling location:update:', err.message);
       }

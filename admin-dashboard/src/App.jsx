@@ -5,7 +5,6 @@ import MemberSidebar from './components/MemberSidebar';
 import AlertBanner from './components/AlertBanner';
 import AlertsModal from './components/AlertsModal';
 import HistoryReplayBar from './components/HistoryReplayBar';
-import GeofenceModal from './components/GeofenceModal';
 import LoginModal from './components/LoginModal';
 
 import { api, getAuthToken, setAuthToken, getAdminUser, setAdminUser, getBackendServerUrl, setBackendServerUrl } from './services/api';
@@ -101,11 +100,9 @@ export default function App() {
     membersRef.current = members;
   }, [members]);
 
-  const [geofences, setGeofences] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [selectedMemberId, setSelectedMemberId] = useState(null);
   const [simulatorActive, setSimulatorActive] = useState(false);
-  const [isGeofenceModalOpen, setIsGeofenceModalOpen] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [customServerUrl, setCustomServerUrl] = useState(getBackendServerUrl());
@@ -117,9 +114,8 @@ export default function App() {
   // Load initial club data
   const loadDashboardData = useCallback(async () => {
     try {
-      const [membersRes, geofencesRes, alertsRes] = await Promise.all([
+      const [membersRes, alertsRes] = await Promise.all([
         api.getMembers(),
-        api.getGeofences('club_akgec_aws_01'),
         api.getAlerts('club_akgec_aws_01')
       ]);
 
@@ -162,7 +158,6 @@ export default function App() {
       }
 
       setMembers(cleanMembers);
-      setGeofences(geofencesRes.geofences || []);
       setAlerts(dedupedAlerts);
       setSimulatorActive(false);
     } catch (err) {
@@ -390,17 +385,6 @@ export default function App() {
     setHistoryMember(null);
   };
 
-  // Geofence Actions
-  const handleCreateGeofence = async (data) => {
-    const res = await api.createGeofence(data);
-    setGeofences((prev) => [res.geofence, ...prev]);
-  };
-
-  const handleDeleteGeofence = async (id) => {
-    await api.deleteGeofence(id);
-    setGeofences((prev) => prev.filter((g) => g.id !== id));
-  };
-
   // Resolve Alert
   const handleResolveAlert = async (alertId) => {
     try {
@@ -496,7 +480,6 @@ export default function App() {
             }}
             isConnected={isSocketConnected}
             onOpenServerSettings={() => setIsServerSettingsOpen(true)}
-            onOpenGeofences={() => setIsGeofenceModalOpen(true)}
             onOpenAlerts={() => setIsAlertsModalOpen(true)}
             unresolvedAlertCount={unresolvedAlertCount}
             onLogout={handleLogout}
@@ -507,7 +490,6 @@ export default function App() {
             {/* Live Map */}
             <MapView
               members={members}
-              geofences={geofences}
               selectedMemberId={selectedMemberId}
               onSelectMember={setSelectedMemberId}
               historyTrail={historyTrail}
@@ -525,7 +507,7 @@ export default function App() {
               onDeleteMember={handleDeleteMember}
             />
 
-            {/* Emergency & Geofence Alert Banner */}
+            {/* Emergency Alert Banner */}
             <AlertBanner
               alerts={alerts}
               onFocusMember={setSelectedMemberId}
@@ -539,15 +521,6 @@ export default function App() {
               onClose={handleClearHistory}
             />
           </div>
-
-          {/* Geofence Management Modal */}
-          <GeofenceModal
-            isOpen={isGeofenceModalOpen}
-            onClose={() => setIsGeofenceModalOpen(false)}
-            geofences={geofences}
-            onCreateGeofence={handleCreateGeofence}
-            onDeleteGeofence={handleDeleteGeofence}
-          />
 
           {/* Alerts & Notifications Modal */}
           <AlertsModal

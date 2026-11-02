@@ -46,7 +46,7 @@ export default function AlertBanner({ alerts, onFocusMember, onResolveAlert }) {
 
         <div>
           <div style={{ fontSize: '13px', fontWeight: '700', color: '#ffffff' }}>
-            {isSos ? '🚨 DISTRESS SOS ALERT' : '📍 GEOFENCE PERIMETER ALERT'}
+            {isSos ? '🚨 DISTRESS SOS ALERT' : '⚠️ MEMBER ALERT'}
           </div>
           <div style={{ fontSize: '12px', color: '#f1f5f9' }}>
             {currentAlert.message}

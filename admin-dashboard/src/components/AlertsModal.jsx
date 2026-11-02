@@ -98,7 +98,7 @@ export default function AlertsModal({
                 )}
               </h2>
               <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                Real-time safety distress beacons and geofence boundary events
+                Real-time safety distress beacons and emergency notifications
               </p>
             </div>
           </div>
@@ -256,7 +256,7 @@ export default function AlertsModal({
                         gap: '4px'
                       }}>
                         {isSos ? <AlertTriangle size={12} /> : <Info size={12} />}
-                        {isSos ? 'SOS DISTRESS' : 'GEOFENCE'}
+                        {isSos ? 'SOS DISTRESS' : 'SAFETY ALERT'}
                       </span>
 
                       {isResolved && (
