@@ -46,21 +46,18 @@ router.post('/sos', (req, res) => {
     return res.status(404).json({ error: 'You cannot send the SOS as you are no longer a member of this club.' });
   }
 
-  // Deduplication: prevent duplicate SOS within 8 seconds from same member
+  // Deduplication: prevent duplicate SOS within 15 seconds from same member
   const recentAlert = db.prepare(`
     SELECT * FROM alerts
     WHERE member_id = ? AND type = 'sos' AND resolved = 0
+      AND (strftime('%s', 'now') - strftime('%s', created_at)) < 15
     ORDER BY created_at DESC
     LIMIT 1
   `).get(cleanMemberId);
 
   if (recentAlert) {
-    const rawTs = recentAlert.created_at ? recentAlert.created_at.replace(' ', 'T') : '';
-    const ageMs = Date.now() - new Date(rawTs).getTime();
-    if (!isNaN(ageMs) && ageMs < 8000) {
-      console.log(`[REST Deduplicate] Reusing existing SOS ${recentAlert.id} for member ${cleanMemberId} (${ageMs}ms ago)`);
-      return res.status(200).json({ alert: recentAlert, member, deduplicated: true });
-    }
+    console.log(`[REST Deduplicate] Reusing existing SOS ${recentAlert.id} for member ${cleanMemberId}`);
+    return res.status(200).json({ alert: recentAlert, member, deduplicated: true });
   }
 
   const lat = latitude !== undefined ? Number(latitude) : 0;

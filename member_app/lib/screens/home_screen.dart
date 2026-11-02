@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _handleRevokedMembership([String? message]) async {
-    await StorageService.clearAuth();
+    await StorageService.clear();
     LocationService.stopTracking();
     SocketService.disconnect();
     if (!mounted) return;
@@ -243,24 +243,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final sosMsg = 'EMERGENCY SOS: Member ${_member.name} pressed panic distress button!';
 
     try {
-      // 1. Send via REST endpoint first to verify membership against backend database
+      // Send single verified SOS request via REST API
+      // (Backend validates membership, inserts 1 alert, and broadcasts it to Admin Dashboard)
       await ApiService.sendSos(
         memberId: _member.id,
         latitude: lat,
         longitude: lng,
         message: sosMsg,
       );
-
-      // 2. If valid member, also broadcast via WebSockets for zero-latency dashboard dispatch
-      if (SocketService.isConnected) {
-        SocketService.triggerSos(
-          memberId: _member.id,
-          clubId: _member.clubId,
-          latitude: lat,
-          longitude: lng,
-          message: sosMsg,
-        );
-      }
 
       if (mounted) {
         setState(() {

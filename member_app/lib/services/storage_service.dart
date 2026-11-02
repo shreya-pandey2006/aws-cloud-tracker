@@ -51,4 +51,8 @@ class StorageService {
     await prefs.remove(_keyToken);
     await prefs.remove(_keyMember);
   }
+
+  static Future<void> clearAuth() async {
+    await clear();
+  }
 }

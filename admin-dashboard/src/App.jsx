@@ -157,9 +157,27 @@ export default function App() {
           return true;
         });
 
+      // Deduplicate alerts: collapse duplicate unresolved alerts for the same member within 30s
+      const dedupedAlerts = [];
+      for (const a of cleanAlerts) {
+        const mId = a.member_id || a.memberId;
+        const aTime = new Date(a.created_at ? a.created_at.replace(' ', 'T') + 'Z' : Date.now()).getTime();
+        const isDupe = dedupedAlerts.some((existing) => {
+          const exMId = existing.member_id || existing.memberId;
+          if (mId && exMId === mId && a.type === existing.type && a.message === existing.message) {
+            const exTime = new Date(existing.created_at ? existing.created_at.replace(' ', 'T') + 'Z' : Date.now()).getTime();
+            return Math.abs(aTime - exTime) < 30000;
+          }
+          return false;
+        });
+        if (!isDupe) {
+          dedupedAlerts.push(a);
+        }
+      }
+
       setMembers(cleanMembers);
       setGeofences(geofencesRes.geofences || []);
-      setAlerts(cleanAlerts);
+      setAlerts(dedupedAlerts);
       setSimulatorActive(false);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -266,7 +284,20 @@ export default function App() {
 
       playEmergencyAlertSound();
       setAlerts((prev) => {
-        if (prev.some((a) => a.id === alertData.id)) return prev;
+        // Drop duplicate SOS within 15 seconds from the same member
+        const isDupe = prev.some((a) => {
+          if (a.id === alertData.id) return true;
+          const prevMId = a.member_id || a.memberId;
+          if (prevMId && prevMId === mId && a.type === 'sos' && !a.resolved) {
+            const timeDiff = Math.abs(Date.now() - new Date(a.created_at || a.createdAt || Date.now()).getTime());
+            return isNaN(timeDiff) || timeDiff < 15000;
+          }
+          return false;
+        });
+        if (isDupe) {
+          console.warn('Dashboard dropped duplicate incoming SOS alert for member:', mId);
+          return prev;
+        }
         return [alertData, ...prev];
       });
 

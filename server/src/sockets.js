@@ -219,21 +219,18 @@ function setupSocketIO(io, simulator) {
 
       const effectiveClubId = member.club_id || clubId;
 
-      // Deduplication: prevent rapid double-trigger within 8 seconds
+      // Deduplication: prevent rapid double-trigger within 15 seconds
       const recentAlert = db.prepare(`
-        SELECT id, created_at FROM alerts
+        SELECT id FROM alerts
         WHERE member_id = ? AND type = 'sos' AND resolved = 0
+          AND (strftime('%s', 'now') - strftime('%s', created_at)) < 15
         ORDER BY created_at DESC
         LIMIT 1
       `).get(cleanMemberId);
 
       if (recentAlert) {
-        const rawTs = recentAlert.created_at ? recentAlert.created_at.replace(' ', 'T') : '';
-        const ageMs = Date.now() - new Date(rawTs).getTime();
-        if (!isNaN(ageMs) && ageMs < 8000) {
-          console.log(`[Sockets Deduplicate] Reusing recent SOS ${recentAlert.id} for member ${cleanMemberId} (${ageMs}ms ago)`);
-          return;
-        }
+        console.log(`[Sockets Deduplicate] Dropping duplicate SOS for member ${cleanMemberId} (existing alert: ${recentAlert.id})`);
+        return;
       }
 
       const alertId = 'sos_' + Date.now().toString(36);
