@@ -81,7 +81,7 @@ router.post('/member/login', (req, res) => {
   const token = signToken({
     id: member.id,
     clubId: member.club_id,
-    role: 'member',
+    role: member.role || 'Member',
     name: member.name,
     email: member.email
   });
@@ -93,14 +93,14 @@ router.post('/member/login', (req, res) => {
     token,
     user: {
       ...safeMember,
-      role: 'member'
+      role: member.role || 'Member'
     }
   });
 });
 
 // Member Registration
 router.post('/member/register', (req, res) => {
-  const { clubCode, name, email, phone, emergencyContact, password } = req.body;
+  const { clubCode, name, email, phone, emergencyContact, password, role } = req.body;
 
   // Validate required fields
   if (!clubCode || typeof clubCode !== 'string' || clubCode.trim().length < 3) {
@@ -124,6 +124,10 @@ router.post('/member/register', (req, res) => {
     return res.status(400).json({ error: 'Emergency contact format is invalid (must be 10-15 digits)' });
   }
 
+  const memberRole = (typeof role === 'string' && role.trim().length > 0)
+    ? role.trim().substring(0, 50)
+    : 'Member';
+
   const club = db.prepare('SELECT * FROM clubs WHERE UPPER(code) = ?').get(clubCode.toUpperCase().trim());
   if (!club) {
     return res.status(404).json({ error: 'Invalid club passcode. No club found with this code.' });
@@ -140,7 +144,7 @@ router.post('/member/register', (req, res) => {
 
   db.prepare(`
     INSERT INTO members (id, club_id, name, email, phone, emergency_contact, password_hash, role, status, is_sharing_location)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'member', 'offline', 0)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'offline', 0)
   `).run(
     memberId,
     club.id,
@@ -148,13 +152,14 @@ router.post('/member/register', (req, res) => {
     email.toLowerCase().trim(),
     phone ? phone.trim() : '',
     emergencyContact ? emergencyContact.trim() : '',
-    passwordHash
+    passwordHash,
+    memberRole
   );
 
   const token = signToken({
     id: memberId,
     clubId: club.id,
-    role: 'member',
+    role: memberRole,
     name: name.trim(),
     email: email.toLowerCase().trim()
   });
@@ -169,7 +174,7 @@ router.post('/member/register', (req, res) => {
     email: email.toLowerCase().trim(),
     phone: phone || '',
     emergency_contact: emergencyContact || '',
-    role: 'member',
+    role: memberRole,
     status: 'offline',
     is_sharing_location: 0,
     created_at: new Date().toISOString()

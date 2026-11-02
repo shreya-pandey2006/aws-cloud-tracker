@@ -228,9 +228,23 @@ export default function MemberSidebar({
                       <div style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         {member.name}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>
-                        {member.role || 'Club Member'}
-                      </div>
+                      <span style={{
+                        display: 'inline-block',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        color: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                        border: '1px solid rgba(56, 189, 248, 0.28)',
+                        borderRadius: '4px',
+                        padding: '1px 6px',
+                        marginTop: '3px',
+                        maxWidth: '140px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {member.role || 'Member'}
+                      </span>
                     </div>
                   </div>
 

@@ -140,10 +140,20 @@ export default function MapView({
 
       const popupHtml = `
         <div style="padding: 14px; min-width: 220px; font-family: sans-serif;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px;">
             <div>
               <div style="font-weight: 700; font-size: 15px; color: #f8fafc;">${member.name}</div>
-              <div style="font-size: 11px; color: #94a3b8;">${member.role || 'Member'}</div>
+              <span style="
+                display: inline-block;
+                font-size: 11px;
+                font-weight: 600;
+                color: #38bdf8;
+                background: rgba(56, 189, 248, 0.15);
+                border: 1px solid rgba(56, 189, 248, 0.35);
+                border-radius: 4px;
+                padding: 1px 7px;
+                margin-top: 3px;
+              ">${member.role || 'Member'}</span>
             </div>
             <span style="
               font-size: 10px;

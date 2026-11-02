@@ -69,11 +69,17 @@ router.get('/:id/history', requireAdmin, (req, res) => {
 // Update member profile
 router.put('/:id/profile', (req, res) => {
   const { id } = req.params;
-  const { name, phone, emergencyContact } = req.body;
+  const { name, phone, emergencyContact, role } = req.body;
 
   if (name !== undefined) {
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 60) {
       return res.status(400).json({ error: 'Name must be between 2 and 60 characters' });
+    }
+  }
+
+  if (role !== undefined) {
+    if (typeof role !== 'string' || role.trim().length === 0 || role.trim().length > 50) {
+      return res.status(400).json({ error: 'Role must be between 1 and 50 characters' });
     }
   }
 
@@ -98,14 +104,27 @@ router.put('/:id/profile', (req, res) => {
     UPDATE members
     SET name = COALESCE(?, name),
         phone = COALESCE(?, phone),
-        emergency_contact = COALESCE(?, emergency_contact)
+        emergency_contact = COALESCE(?, emergency_contact),
+        role = COALESCE(?, role)
     WHERE id = ?
-  `).run(name ? name.trim() : null, phone ? phone.trim() : null, emergencyContact ? emergencyContact.trim() : null, id);
+  `).run(
+    name ? name.trim() : null,
+    phone ? phone.trim() : null,
+    emergencyContact ? emergencyContact.trim() : null,
+    role ? role.trim() : null,
+    id
+  );
 
   const updated = db.prepare(`
     SELECT id, club_id, name, email, phone, emergency_contact, role, status, is_sharing_location
     FROM members WHERE id = ?
   `).get(id);
+
+  const io = req.app.get('io');
+  if (io && updated) {
+    const clubRoom = updated.club_id.startsWith('club_') ? updated.club_id : `club_${updated.club_id}`;
+    io.to(clubRoom).emit('member:updated', updated);
+  }
 
   return res.json({ member: updated, message: 'Profile updated successfully' });
 });

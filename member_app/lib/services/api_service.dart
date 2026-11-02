@@ -44,6 +44,7 @@ class ApiService {
     required String name,
     required String email,
     required String password,
+    String? role,
     String? phone,
     String? emergencyContact,
   }) async {
@@ -56,6 +57,7 @@ class ApiService {
       body: jsonEncode({
         'clubCode': clubCode.trim(),
         'name': name.trim(),
+        'role': (role != null && role.trim().isNotEmpty) ? role.trim() : 'Member',
         'email': email.trim(),
         'password': password.trim(),
         'phone': phone?.trim() ?? '',

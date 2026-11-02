@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
 
   final _nameController = TextEditingController();
+  final _roleController = TextEditingController(text: 'Member');
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emergencyController = TextEditingController();
@@ -28,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _roleController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _emergencyController.dispose();
@@ -41,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
     final clubCode = _clubCodeController.text.trim();
     final name = _nameController.text.trim();
+    final role = _roleController.text.trim();
     final phone = _phoneController.text.trim();
     final emergency = _emergencyController.text.trim();
 
@@ -74,6 +77,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       if (!RegExp(r"^[a-zA-Z\s.'-]+$").hasMatch(name)) {
         setState(() => _errorMessage = 'Full Name should only contain letters and spaces.');
+        return;
+      }
+
+      if (role.isNotEmpty && role.length > 50) {
+        setState(() => _errorMessage = 'Club Role cannot exceed 50 characters.');
         return;
       }
 
@@ -142,6 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
         result = await ApiService.register(
           clubCode: clubCode,
           name: name,
+          role: role.isNotEmpty ? role : 'Member',
           email: email,
           password: password,
           phone: phone,
@@ -362,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 14),
 
-                      // If Register Mode, Full Name
+                      // If Register Mode, Full Name & Club Role
                       if (_isRegisterMode) ...[
                         const Text(
                           'Full Name',
@@ -385,6 +394,33 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderSide: const BorderSide(color: Color(0xFF334155)),
                             ),
                             hintText: 'e.g. Rahul Sharma',
+                            hintStyle: const TextStyle(color: Color(0xFF475569)),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        const Text(
+                          'Club Role / Designation',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _roleController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.badge_outlined, color: Color(0xFF64748B), size: 18),
+                            filled: true,
+                            fillColor: const Color(0xFF0F172A),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            hintText: 'e.g. Cloud Lead, Core Team, Member',
                             hintStyle: const TextStyle(color: Color(0xFF475569)),
                             contentPadding: const EdgeInsets.symmetric(vertical: 12),
                           ),
