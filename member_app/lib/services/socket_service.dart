@@ -45,14 +45,14 @@ class SocketService {
       debugPrint('⚠️ Member account revoked by club admin: $data');
       final msg = (data is Map && data['error'] != null)
           ? data['error'].toString()
-          : 'You cannot send the SOS as you are no longer a member of this club.';
+          : 'Your session has expired. Please sign in again.';
       if (onRevoked != null) onRevoked(msg);
     });
 
     _socket!.on('member:removed', (data) {
       if (data is Map && data['memberId'] == memberId) {
         debugPrint('⚠️ Member removed from club by admin');
-        if (onRevoked != null) onRevoked('You cannot send the SOS as you are no longer a member of this club.');
+        if (onRevoked != null) onRevoked('Your account was removed by the administrator.');
       }
     });
 

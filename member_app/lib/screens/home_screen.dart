@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          message ?? 'You cannot send the SOS as you are no longer a member of this club.',
+          message ?? 'Your session has expired. Please sign in again.',
           style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         backgroundColor: const Color(0xFFEF4444),
@@ -287,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         errStr.toLowerCase().contains('revoked');
 
       if (isRevoked) {
-        await _handleRevokedMembership('You cannot send the SOS as you are no longer a member of this club.');
+        await _handleRevokedMembership('Unable to send SOS: Member account not found.');
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

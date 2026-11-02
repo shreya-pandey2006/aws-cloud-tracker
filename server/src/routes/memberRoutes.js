@@ -223,7 +223,7 @@ router.delete('/:id', (req, res) => {
     io.to(clubRoom).emit('member:removed', { memberId: id });
     io.to(`member_${id}`).emit('auth:revoked', {
       memberId: id,
-      error: 'You cannot send the SOS as you are no longer a member of this club.'
+      error: 'Your account was removed by the administrator.'
     });
   }
 

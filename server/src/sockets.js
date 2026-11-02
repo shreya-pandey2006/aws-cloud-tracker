@@ -85,7 +85,7 @@ function setupSocketIO(io, simulator) {
       // Check member's current sharing consent
       const member = db.prepare('SELECT id, name, is_sharing_location FROM members WHERE id = ?').get(memberId);
       if (!member) {
-        socket.emit('auth:revoked', { memberId, error: 'You cannot send the SOS as you are no longer a member of this club.' });
+        socket.emit('auth:revoked', { memberId, error: 'Your session has expired. Please sign in again.' });
         return;
       }
       if (!member.is_sharing_location) {
@@ -176,7 +176,7 @@ function setupSocketIO(io, simulator) {
       // SECURITY CHECK: If member does NOT exist in the database (deleted by admin), REJECT IMMEDIATELY!
       if (!member) {
         console.warn(`[Blocked] SOS attempt from non-existent or deleted member: ${cleanMemberId}`);
-        socket.emit('auth:revoked', { memberId: cleanMemberId, error: 'You cannot send the SOS as you are no longer a member of this club.' });
+        socket.emit('auth:revoked', { memberId: cleanMemberId, error: 'Unable to send SOS: Member account not found.' });
         return;
       }
 

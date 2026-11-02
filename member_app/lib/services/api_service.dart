@@ -149,13 +149,13 @@ class ApiService {
     if (res.statusCode >= 400) {
       try {
         final data = jsonDecode(res.body);
-        final errMsg = data['error'] ?? data['message'] ?? 'You cannot send the SOS as you are no longer a member of this club.';
+        final errMsg = data['error'] ?? data['message'] ?? 'Failed to send SOS distress alert. Please try again.';
         throw Exception(errMsg);
       } catch (e) {
         if (e is Exception && !e.toString().contains('FormatException')) {
           rethrow;
         }
-        throw Exception('You cannot send the SOS as you are no longer a member of this club.');
+        throw Exception('Failed to send SOS distress alert. Please try again.');
       }
     }
   }

@@ -43,7 +43,7 @@ router.post('/sos', (req, res) => {
   const cleanMemberId = memberId.trim();
   const member = db.prepare('SELECT club_id, name, phone, emergency_contact FROM members WHERE id = ?').get(cleanMemberId);
   if (!member) {
-    return res.status(404).json({ error: 'You cannot send the SOS as you are no longer a member of this club.' });
+    return res.status(404).json({ error: 'Unable to send SOS: Member account not found.' });
   }
 
   // Deduplication: prevent duplicate SOS within 15 seconds from same member
