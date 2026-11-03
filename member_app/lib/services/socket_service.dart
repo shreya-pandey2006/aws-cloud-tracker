@@ -10,6 +10,7 @@ class SocketService {
     required String clubId,
     required String memberId,
     Function()? onConnected,
+    Function()? onDisconnected,
     Function(dynamic)? onAlert,
     Function(String?)? onRevoked,
   }) async {
@@ -20,10 +21,13 @@ class SocketService {
     _socket = socket_io.io(
       serverUrl,
       socket_io.OptionBuilder()
-          .setTransports(['websocket', 'polling'])
+          .setTransports(['polling', 'websocket'])
           .enableAutoConnect()
           .enableReconnection()
-          .setReconnectionAttempts(10)
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(5000)
+          .setReconnectionAttempts(999)
+          .setTimeout(25000)
           .build(),
     );
 
@@ -39,6 +43,22 @@ class SocketService {
 
     _socket!.onDisconnect((reason) {
       debugPrint('⚠️ Disconnected from socket: $reason');
+      if (onDisconnected != null) onDisconnected();
+    });
+
+    _socket!.onConnectError((err) {
+      debugPrint('⚠️ Socket connection error: $err');
+      if (onDisconnected != null) onDisconnected();
+    });
+
+    _socket!.onReconnect((_) {
+      debugPrint('🔄 Socket reconnected successfully');
+      _socket!.emit('join', {
+        'clubId': clubId,
+        'memberId': memberId,
+        'role': 'member',
+      });
+      if (onConnected != null) onConnected();
     });
 
     _socket!.on('auth:revoked', (data) {

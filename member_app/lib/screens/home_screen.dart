@@ -87,8 +87,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       onConnected: () {
         if (mounted) setState(() {});
       },
+      onDisconnected: () {
+        if (mounted) setState(() {});
+      },
       onRevoked: (msg) => _handleRevokedMembership(msg),
     );
+
+    // Warm up the cloud server in the background if it was sleeping
+    ApiService.pingServer();
 
     // 2. Initial position
     final pos = await LocationService.getCurrentPosition();
@@ -242,30 +248,53 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     final sosMsg = 'EMERGENCY SOS: Member ${_member.name} pressed panic distress button!';
 
-    try {
-      // 1. Send via WebSocket if connected for instantaneous dashboard dispatch
-      if (SocketService.isConnected) {
-        SocketService.triggerSos(
+    bool sentSuccessfully = false;
+    dynamic lastError;
+
+    // Retry up to 2 attempts with a short backoff for network resilience
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      try {
+        // 1. Send via WebSocket if connected for instantaneous dashboard dispatch
+        if (SocketService.isConnected) {
+          SocketService.triggerSos(
+            memberId: _member.id,
+            clubId: _member.clubId,
+            latitude: lat,
+            longitude: lng,
+            message: sosMsg,
+          );
+        }
+
+        // 2. Also record via REST API (validates membership in database)
+        await ApiService.sendSos(
           memberId: _member.id,
-          clubId: _member.clubId,
           latitude: lat,
           longitude: lng,
           message: sosMsg,
         );
+
+        sentSuccessfully = true;
+        break;
+      } catch (e) {
+        lastError = e;
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('not found') && !errStr.contains('host')) {
+          break;
+        }
+        if (attempt < 2) {
+          await Future.delayed(const Duration(milliseconds: 1000));
+        }
       }
+    }
 
-      // 2. Also record via REST API (validates membership in database)
-      await ApiService.sendSos(
-        memberId: _member.id,
-        latitude: lat,
-        longitude: lng,
-        message: sosMsg,
-      );
+    if (mounted) {
+      setState(() {
+        _isSosLoading = false;
+      });
+    }
 
+    if (sentSuccessfully) {
       if (mounted) {
-        setState(() {
-          _isSosLoading = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🚨 SOS DISTRESS TRANSMITTED TO CLUB ADMIN!'),
@@ -274,17 +303,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSosLoading = false;
-        });
-      }
-      final errStr = e.toString().replaceAll('Exception:', '').trim();
-      final isRevoked = errStr.toLowerCase().contains('no longer a member') ||
-                        errStr.toLowerCase().contains('not found') ||
-                        errStr.contains('404') ||
-                        errStr.toLowerCase().contains('revoked');
+    } else {
+      final errStr = (lastError?.toString() ?? '').replaceAll('Exception:', '').trim();
+      final isRevoked = errStr.toLowerCase().contains('not found') && !errStr.toLowerCase().contains('host');
 
       if (isRevoked) {
         await _handleRevokedMembership('Unable to send SOS: Member account not found.');
@@ -294,7 +315,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             SnackBar(
               content: Text('⚠️ $errStr'),
               backgroundColor: const Color(0xFFEF4444),
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'RETRY',
+                textColor: Colors.white,
+                onPressed: _triggerSos,
+              ),
             ),
           );
         }
