@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
+import 'api_service.dart';
 import 'storage_service.dart';
 
 class SocketService {
@@ -21,7 +22,7 @@ class SocketService {
     _socket = socket_io.io(
       serverUrl,
       socket_io.OptionBuilder()
-          .setTransports(['polling', 'websocket'])
+          .setTransports(['websocket']) // Flutter/Dart VM only supports websocket
           .enableAutoConnect()
           .enableReconnection()
           .setReconnectionDelay(1000)
@@ -30,6 +31,8 @@ class SocketService {
           .setTimeout(25000)
           .build(),
     );
+
+    _socket!.connect();
 
     _socket!.onConnect((_) {
       debugPrint('📡 Connected to Club Live Socket Gateway: ${_socket!.id}');
@@ -93,6 +96,7 @@ class SocketService {
     double altitude = 0.0,
     int battery = 100,
   }) {
+    // 1. Emit via WebSocket if connected for zero-latency dashboard sync
     if (_socket != null && _socket!.connected) {
       _socket!.emit('location:update', {
         'memberId': memberId,
@@ -107,6 +111,18 @@ class SocketService {
         'timestamp': DateTime.now().toIso8601String(),
       });
     }
+
+    // 2. Dual-transport fallback via REST API ensures database and map stay 100% updated even if socket is reconnecting
+    ApiService.sendLocationUpdate(
+      memberId: memberId,
+      latitude: latitude,
+      longitude: longitude,
+      accuracy: accuracy,
+      speed: speed,
+      heading: heading,
+      altitude: altitude,
+      battery: battery,
+    );
   }
 
   static void toggleLocationSharing({
@@ -121,6 +137,7 @@ class SocketService {
         'enabled': enabled,
       });
     }
+    ApiService.toggleSharing(memberId, enabled);
   }
 
   static void triggerSos({

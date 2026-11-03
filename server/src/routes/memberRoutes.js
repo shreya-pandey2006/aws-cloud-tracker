@@ -153,7 +153,7 @@ router.post('/:id/location', (req, res) => {
   const alt = Number(altitude) || 0.0;
   const bat = Math.min(100, Math.max(0, Math.round(Number(battery) || 100)));
 
-  const member = db.prepare('SELECT is_sharing_location FROM members WHERE id = ?').get(id);
+  const member = db.prepare('SELECT id, name, club_id, is_sharing_location FROM members WHERE id = ?').get(id);
   if (!member) {
     return res.status(404).json({ error: 'Member not found' });
   }
@@ -178,6 +178,26 @@ router.post('/:id/location', (req, res) => {
       INSERT INTO location_history (member_id, latitude, longitude, accuracy, speed, heading, altitude, battery)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, lat, lon, acc, spd, hdg, alt, bat);
+
+    const io = req.app.get('io');
+    if (io) {
+      const clubId = member.club_id || 'club_akgec_aws_01';
+      const clubRoom = clubId.startsWith('club_') ? clubId : `club_${clubId}`;
+      io.to(clubRoom).emit('member:location_changed', {
+        memberId: id,
+        name: member.name,
+        latitude: lat,
+        longitude: lon,
+        accuracy: acc,
+        speed: spd,
+        heading: hdg,
+        altitude: alt,
+        battery: bat,
+        status: 'active',
+        isSharing: true,
+        lastSeenAt: new Date().toISOString()
+      });
+    }
   }
 
   return res.json({ success: true, isSharing: !!member.is_sharing_location });

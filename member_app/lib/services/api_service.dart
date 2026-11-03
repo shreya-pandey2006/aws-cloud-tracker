@@ -217,5 +217,36 @@ class ApiService {
       }
     }
   }
+
+  static Future<void> sendLocationUpdate({
+    required String memberId,
+    required double latitude,
+    required double longitude,
+    double accuracy = 5.0,
+    double speed = 0.0,
+    double heading = 0.0,
+    double altitude = 0.0,
+    int battery = 100,
+  }) async {
+    try {
+      final baseUrl = await _getBaseUrl();
+      final url = Uri.parse('$baseUrl/members/$memberId/location');
+      await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'latitude': latitude,
+          'longitude': longitude,
+          'accuracy': accuracy,
+          'speed': speed,
+          'heading': heading,
+          'altitude': altitude,
+          'battery': battery,
+        }),
+      ).timeout(const Duration(seconds: 10));
+    } catch (_) {
+      // Ignore background sync errors
+    }
+  }
 }
 

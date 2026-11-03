@@ -103,6 +103,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _currentPosition = pos;
       });
       _mapController.move(LatLng(pos.latitude, pos.longitude), 15.0);
+
+      // Transmit first position immediately
+      if (_isSharing) {
+        SocketService.sendLocationUpdate(
+          memberId: _member.id,
+          clubId: _member.clubId,
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          accuracy: pos.accuracy,
+          speed: (pos.speed * 3.6),
+          heading: pos.heading,
+          altitude: pos.altitude,
+          battery: 95,
+        );
+      }
     }
 
     // 3. If sharing was already on, resume tracking
